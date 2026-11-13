@@ -308,6 +308,9 @@ then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the
 virtio port emulated by `socat PTY,… UNIX-LISTEN:…`).
 
+`packaging/appimage/test-distros.sh` smoke-tests the AppImage on Fedora and
+Ubuntu (and any other distribution image you pass) in containers.
+
 `readme_shots` regenerates the images in `docs/screenshots/` from a staged
 sample library (it boots a Linux live ISO and a Windows installer ISO).
 

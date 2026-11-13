@@ -54,13 +54,16 @@ export OUTPUT="$LDAI_OUTPUT"
 
 # Libraries that must come from the host. EGL/GL are excluded by linuxdeploy
 # already; Mesa's EGL talks to the compositor through the host's libwayland.
-# The rest are core system libraries every glibc 2.39+ distribution has, with
-# stable ABIs. Bundling older copies of them breaks newer host libraries that
-# get loaded too (GLib, Mesa's drivers, …). The Qt plugin ignores
-# --exclude-library, so deploy first, prune, then pack.
+# The rest are core system libraries every glibc 2.39+ distribution has under
+# the same name, with stable ABIs. Bundling older copies of them breaks newer
+# host libraries that get loaded too (GLib, Mesa's drivers, …). Only list
+# libraries whose SONAME is the same everywhere: libbz2, for example, is
+# libbz2.so.1.0 on Debian/Ubuntu but libbz2.so.1 on Fedora, so it stays
+# bundled. The Qt plugin ignores --exclude-library, so deploy first, prune,
+# then pack.
 HOST_LIBS=('libwayland-*' libglib-2.0 libgio-2.0 libgobject-2.0 libgmodule-2.0 libgthread-2.0
            libmount libblkid libselinux libpcre2-8 libffi libsystemd libudev libdbus-1
-           libgcrypt libgpg-error libcap liblzma libzstd liblz4 libbz2 libz libexpat libuuid)
+           libgcrypt libgpg-error libcap liblzma libzstd liblz4 libz libexpat libuuid)
 EXCLUDES=()
 for lib in "${HOST_LIBS[@]}"; do EXCLUDES+=(--exclude-library "$lib.so*"); done
 ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt "${EXCLUDES[@]}" \
