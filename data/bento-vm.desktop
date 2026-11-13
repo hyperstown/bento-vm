@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Bento
+GenericName=Virtual Machine Manager
+Comment=Run GPU-accelerated (Venus/VirGL) virtual machines with QEMU/KVM
+Exec=bento-vm %F
+Icon=bento-vm
+Terminal=false
+Categories=System;Emulator;Qt;KDE;
+Keywords=vm;virtual;machine;qemu;kvm;venus;vulkan;virgl;
+MimeType=application/x-cd-image;application/x-iso9660-image;application/vnd.efi.iso;
+StartupWMClass=bento-vm
