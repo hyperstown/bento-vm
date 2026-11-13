@@ -3,6 +3,7 @@
 
 #include "MainWindow.h"
 #include "FlowLayout.h"
+#include "Icons.h"
 #include "NewVmWizard.h"
 #include "SettingsDialog.h"
 #include "Theme.h"
@@ -67,30 +68,30 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::buildActions()
 {
-    m_actNew = new QAction(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("New VM…"), this);
+    m_actNew = new QAction(Icons::fromTheme(QStringLiteral("list-add")), QStringLiteral("New VM…"), this);
     m_actNew->setShortcut(QKeySequence::New);
     m_actNew->setToolTip(QStringLiteral("Create a virtual machine from an ISO or an existing disk"));
     connect(m_actNew, &QAction::triggered, this, [this] { openWizard(); });
 
-    m_actImportFolder = new QAction(QIcon::fromTheme(QStringLiteral("document-import")), QStringLiteral("Add Existing BentoVM Folder…"), this);
+    m_actImportFolder = new QAction(Icons::fromTheme(QStringLiteral("document-import")), QStringLiteral("Add Existing BentoVM Folder…"), this);
     connect(m_actImportFolder, &QAction::triggered, this, &MainWindow::importFolder);
 
-    m_actStart = new QAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"), this);
+    m_actStart = new QAction(Icons::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"), this);
     connect(m_actStart, &QAction::triggered, this, [this] {
         if (Vm *vm = selectedVm())
             openVm(vm);
     });
-    m_actOpen = new QAction(QIcon::fromTheme(QStringLiteral("window-new")), QStringLiteral("Open"), this);
+    m_actOpen = new QAction(Icons::fromTheme(QStringLiteral("window-new")), QStringLiteral("Open"), this);
     connect(m_actOpen, &QAction::triggered, this, [this] {
         if (Vm *vm = selectedVm())
             openVm(vm);
     });
-    m_actShutdown = new QAction(QIcon::fromTheme(QStringLiteral("system-shutdown")), QStringLiteral("Shut Down"), this);
+    m_actShutdown = new QAction(Icons::fromTheme(QStringLiteral("system-shutdown")), QStringLiteral("Shut Down"), this);
     connect(m_actShutdown, &QAction::triggered, this, [this] {
         if (Vm *vm = selectedVm())
             vm->shutdown();
     });
-    m_actForceOff = new QAction(QIcon::fromTheme(QStringLiteral("process-stop")), QStringLiteral("Force Off"), this);
+    m_actForceOff = new QAction(Icons::fromTheme(QStringLiteral("process-stop")), QStringLiteral("Force Off"), this);
     connect(m_actForceOff, &QAction::triggered, this, [this] {
         Vm *vm = selectedVm();
         if (vm && QMessageBox::question(this, QStringLiteral("Force off %1?").arg(vm->name()),
@@ -98,24 +99,24 @@ void MainWindow::buildActions()
                       == QMessageBox::Yes)
             vm->forceStop();
     });
-    m_actVmSettings = new QAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("VM Settings…"), this);
+    m_actVmSettings = new QAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("VM Settings…"), this);
     connect(m_actVmSettings, &QAction::triggered, this, [this] {
         if (Vm *vm = selectedVm())
             showVmSettings(vm);
     });
-    m_actDelete = new QAction(QIcon::fromTheme(QStringLiteral("edit-delete")), QStringLiteral("Delete…"), this);
+    m_actDelete = new QAction(Icons::fromTheme(QStringLiteral("edit-delete")), QStringLiteral("Delete…"), this);
     m_actDelete->setShortcut(QKeySequence::Delete);
     connect(m_actDelete, &QAction::triggered, this, [this] {
         if (Vm *vm = selectedVm())
             deleteVm(vm);
     });
-    m_actPrefs = new QAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Configure BentoVM…"), this);
+    m_actPrefs = new QAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Configure BentoVM…"), this);
     m_actPrefs->setShortcut(QKeySequence::Preferences);
     connect(m_actPrefs, &QAction::triggered, this, [this] { showSettings(); });
-    m_actQuit = new QAction(QIcon::fromTheme(QStringLiteral("application-exit")), QStringLiteral("Quit"), this);
+    m_actQuit = new QAction(Icons::fromTheme(QStringLiteral("application-exit")), QStringLiteral("Quit"), this);
     m_actQuit->setShortcut(QKeySequence::Quit);
     connect(m_actQuit, &QAction::triggered, this, &QWidget::close);
-    m_actAbout = new QAction(QIcon::fromTheme(QStringLiteral("help-about")), QStringLiteral("About BentoVM"), this);
+    m_actAbout = new QAction(Icons::fromTheme(QStringLiteral("help-about")), QStringLiteral("About BentoVM"), this);
     connect(m_actAbout, &QAction::triggered, this, &MainWindow::showAbout);
 }
 
@@ -138,7 +139,7 @@ void MainWindow::buildMenus()
 
     QMenu *settings = menuBar()->addMenu(QStringLiteral("&Settings"));
     settings->addAction(m_actPrefs);
-    settings->addAction(QIcon::fromTheme(QStringLiteral("drive-harddisk")), QStringLiteral("Storage Locations…"), this,
+    settings->addAction(Icons::fromTheme(QStringLiteral("drive-harddisk")), QStringLiteral("Storage Locations…"), this,
                         [this] { showSettings(true); });
 
     QMenu *help = menuBar()->addMenu(QStringLiteral("&Help"));
@@ -166,7 +167,7 @@ void MainWindow::buildToolbar()
     m_search = new QLineEdit(tb);
     m_search->setPlaceholderText(QStringLiteral("Search…"));
     m_search->setClearButtonEnabled(true);
-    m_search->addAction(QIcon::fromTheme(QStringLiteral("search")), QLineEdit::LeadingPosition);
+    m_search->addAction(Icons::fromTheme(QStringLiteral("search")), QLineEdit::LeadingPosition);
     m_search->setMaximumWidth(260);
     connect(m_search, &QLineEdit::textChanged, this, &MainWindow::applyFilter);
     tb->addWidget(m_search);
@@ -174,7 +175,7 @@ void MainWindow::buildToolbar()
     // Application menu for the modern themes (where the menu bar is hidden).
     m_hamburger = new QToolButton(tb);
     m_hamburger->setObjectName(QStringLiteral("hamburger"));
-    m_hamburger->setIcon(QIcon::fromTheme(QStringLiteral("application-menu"), QIcon::fromTheme(QStringLiteral("open-menu"))));
+    m_hamburger->setIcon(Icons::fromTheme(QStringLiteral("application-menu"), Icons::fromTheme(QStringLiteral("open-menu"))));
     m_hamburger->setPopupMode(QToolButton::InstantPopup);
     m_hamburger->setToolTip(QStringLiteral("Menu"));
     auto *menu = new QMenu(m_hamburger);
@@ -182,7 +183,7 @@ void MainWindow::buildToolbar()
     menu->addAction(m_actImportFolder);
     menu->addSeparator();
     menu->addAction(m_actPrefs);
-    menu->addAction(QIcon::fromTheme(QStringLiteral("drive-harddisk")), QStringLiteral("Storage Locations…"), this,
+    menu->addAction(Icons::fromTheme(QStringLiteral("drive-harddisk")), QStringLiteral("Storage Locations…"), this,
                     [this] { showSettings(true); });
     menu->addSeparator();
     menu->addAction(m_actAbout);
@@ -206,7 +207,7 @@ void MainWindow::buildCentral()
     m_kvmBanner->setFrameShape(QFrame::StyledPanel);
     auto *kb = new QHBoxLayout(m_kvmBanner);
     auto *kIcon = new QLabel(m_kvmBanner);
-    kIcon->setPixmap(QIcon::fromTheme(QStringLiteral("dialog-warning")).pixmap(22, 22));
+    kIcon->setPixmap(Icons::fromTheme(QStringLiteral("dialog-warning")).pixmap(22, 22));
     kb->addWidget(kIcon);
     auto *kText = new QLabel(QStringLiteral("<b>Hardware virtualization isn't available.</b> %1").arg(h.kvmProblem), m_kvmBanner);
     kText->setWordWrap(true);
@@ -275,7 +276,8 @@ void MainWindow::buildCentral()
     es->setAlignment(Qt::AlignCenter);
     el->addWidget(es);
     el->addSpacing(16);
-    auto *create = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Create a Virtual Machine"), empty);
+    auto *create = new QPushButton(Theme::onAccent(Icons::fromTheme(QStringLiteral("list-add"))),
+                                   QStringLiteral("Create a Virtual Machine"), empty);
     create->setProperty("accent", true);
     create->setDefault(true);
     create->setMinimumHeight(40);
@@ -427,12 +429,12 @@ void MainWindow::fillVmMenu(QMenu *menu, Vm *vm)
 {
     const bool active = vm->isActive();
     if (!vm->isAvailable() && !active) {
-        QAction *why = menu->addAction(QIcon::fromTheme(QStringLiteral("dialog-information")), QStringLiteral("Why is it unavailable?"));
+        QAction *why = menu->addAction(Icons::fromTheme(QStringLiteral("dialog-information")), QStringLiteral("Why is it unavailable?"));
         connect(why, &QAction::triggered, this, [this, vm] {
             QMessageBox::information(this, QStringLiteral("%1 is temporarily unavailable").arg(vm->name()), vm->unavailableReason());
         });
         menu->addSeparator();
-        menu->addAction(QIcon::fromTheme(QStringLiteral("edit-clear-list")), QStringLiteral("Forget"), this, [this, vm] {
+        menu->addAction(Icons::fromTheme(QStringLiteral("edit-clear-list")), QStringLiteral("Forget"), this, [this, vm] {
             if (QMessageBox::question(this, QStringLiteral("Forget %1?").arg(vm->name()),
                                       QStringLiteral("BentoVM will stop listing this VM. No files are deleted; you can add the "
                                                      "folder again later with File → Add Existing BentoVM Folder."))
@@ -445,37 +447,37 @@ void MainWindow::fillVmMenu(QMenu *menu, Vm *vm)
     }
     if (active) {
         if (vm->config().display == QLatin1String("embedded"))
-            menu->addAction(QIcon::fromTheme(QStringLiteral("window-new")), QStringLiteral("Open"), this, [this, vm] { openVm(vm); });
-        menu->addAction(QIcon::fromTheme(QStringLiteral("system-shutdown")), QStringLiteral("Shut Down"), vm, &Vm::shutdown);
-        menu->addAction(QIcon::fromTheme(QStringLiteral("system-reboot")), QStringLiteral("Reboot"), vm, &Vm::reboot);
+            menu->addAction(Icons::fromTheme(QStringLiteral("window-new")), QStringLiteral("Open"), this, [this, vm] { openVm(vm); });
+        menu->addAction(Icons::fromTheme(QStringLiteral("system-shutdown")), QStringLiteral("Shut Down"), vm, &Vm::shutdown);
+        menu->addAction(Icons::fromTheme(QStringLiteral("system-reboot")), QStringLiteral("Reboot"), vm, &Vm::reboot);
         if (vm->state() == Vm::State::Paused)
-            menu->addAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Resume"), vm, &Vm::resume);
+            menu->addAction(Icons::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Resume"), vm, &Vm::resume);
         else
-            menu->addAction(QIcon::fromTheme(QStringLiteral("media-playback-pause")), QStringLiteral("Pause"), vm, &Vm::pause);
-        menu->addAction(QIcon::fromTheme(QStringLiteral("process-stop")), QStringLiteral("Force Off"), this, [this, vm] {
+            menu->addAction(Icons::fromTheme(QStringLiteral("media-playback-pause")), QStringLiteral("Pause"), vm, &Vm::pause);
+        menu->addAction(Icons::fromTheme(QStringLiteral("process-stop")), QStringLiteral("Force Off"), this, [this, vm] {
             if (QMessageBox::question(this, QStringLiteral("Force off %1?").arg(vm->name()),
                                       QStringLiteral("Unsaved work in the VM will be lost.")) == QMessageBox::Yes)
                 vm->forceStop();
         });
     } else {
-        menu->addAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"), this, [this, vm] { openVm(vm); });
+        menu->addAction(Icons::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"), this, [this, vm] { openVm(vm); });
     }
     menu->addSeparator();
-    menu->addAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings…"), this, [this, vm] { showVmSettings(vm); });
-    menu->addAction(QIcon::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Show in File Manager"), this,
+    menu->addAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings…"), this, [this, vm] { showVmSettings(vm); });
+    menu->addAction(Icons::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Show in File Manager"), this,
                     [vm] { QDesktopServices::openUrl(QUrl::fromLocalFile(vm->config().dir)); });
-    menu->addAction(QIcon::fromTheme(QStringLiteral("text-x-log"), QIcon::fromTheme(QStringLiteral("document-preview"))),
+    menu->addAction(Icons::fromTheme(QStringLiteral("text-x-log"), Icons::fromTheme(QStringLiteral("document-preview"))),
                     QStringLiteral("Open Log"), this, [this, vm] {
                         if (QFileInfo::exists(vm->logFile()))
                             QDesktopServices::openUrl(QUrl::fromLocalFile(vm->logFile()));
                         else
                             QMessageBox::information(this, QStringLiteral("No log yet"), QStringLiteral("The VM hasn't been started yet."));
                     });
-    menu->addAction(QIcon::fromTheme(QStringLiteral("edit-copy")), QStringLiteral("Copy QEMU Command"), this, [vm] {
+    menu->addAction(Icons::fromTheme(QStringLiteral("edit-copy")), QStringLiteral("Copy QEMU Command"), this, [vm] {
         QApplication::clipboard()->setText(buildQemuCommand(vm->config(), vm->runtimeDir()).toShellString());
     });
     menu->addSeparator();
-    QAction *del = menu->addAction(QIcon::fromTheme(QStringLiteral("edit-delete")), QStringLiteral("Delete…"), this,
+    QAction *del = menu->addAction(Icons::fromTheme(QStringLiteral("edit-delete")), QStringLiteral("Delete…"), this,
                                    [this, vm] { deleteVm(vm); });
     del->setEnabled(!active);
 }
@@ -552,7 +554,7 @@ void MainWindow::deleteVm(Vm *vm)
     if (!outside.isEmpty())
         box.setInformativeText(QStringLiteral("Disk images outside the folder are kept:\n%1").arg(outside.join(QLatin1Char('\n'))));
     QPushButton *del = box.addButton(QStringLiteral("Delete"), QMessageBox::DestructiveRole);
-    del->setIcon(QIcon::fromTheme(QStringLiteral("edit-delete")));
+    del->setIcon(Icons::fromTheme(QStringLiteral("edit-delete")));
     box.addButton(QMessageBox::Cancel);
     auto *keep = new QCheckBox(QStringLiteral("Keep the files, only remove it from BentoVM"), &box);
     box.setCheckBox(keep);

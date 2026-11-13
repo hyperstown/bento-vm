@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VmSettingsDialog.h"
+#include "Icons.h"
 #include "OsIcon.h"
 #include "ResourceEditors.h"
 #include "SettingsDialog.h"
@@ -56,7 +57,7 @@ VmSettingsDialog::VmSettingsDialog(Vm *vm, QWidget *parent)
         banner->setFrameShape(QFrame::StyledPanel);
         auto *bl = new QHBoxLayout(banner);
         auto *icon = new QLabel(banner);
-        icon->setPixmap(QIcon::fromTheme(QStringLiteral("dialog-information")).pixmap(22, 22));
+        icon->setPixmap(Icons::fromTheme(QStringLiteral("dialog-information")).pixmap(22, 22));
         bl->addWidget(icon);
         bl->addWidget(new QLabel(QStringLiteral("The VM is running. Hardware changes apply the next time it starts; "
                                                 "clipboard and file transfer settings apply right away."), banner), 1);
@@ -85,8 +86,8 @@ VmSettingsDialog::VmSettingsDialog(Vm *vm, QWidget *parent)
 
 void VmSettingsDialog::buildGeneral()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("General"), QIcon::fromTheme(QStringLiteral("documentinfo"),
-                                                                           QIcon::fromTheme(QStringLiteral("dialog-information"))));
+    QVBoxLayout *page = addPage(QStringLiteral("General"), Icons::fromTheme(QStringLiteral("documentinfo"),
+                                                                           Icons::fromTheme(QStringLiteral("dialog-information"))));
     auto *form = makeForm();
     m_name = new QLineEdit(m_cfg.name, this);
     form->addRow(QStringLiteral("Name:"), m_name);
@@ -109,8 +110,8 @@ void VmSettingsDialog::buildGeneral()
 
 void VmSettingsDialog::buildResources()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("CPU & Memory"), QIcon::fromTheme(QStringLiteral("cpu"),
-                                                                                QIcon::fromTheme(QStringLiteral("computer"))));
+    QVBoxLayout *page = addPage(QStringLiteral("CPU & Memory"), Icons::fromTheme(QStringLiteral("cpu"),
+                                                                                Icons::fromTheme(QStringLiteral("computer"))));
     const Recommendation rec = OsDb::recommend(OsDb::profile(m_cfg.osId), HostInfo::get());
     auto *cpuBox = new QGroupBox(QStringLiteral("Processor"), this);
     auto *cl = new QVBoxLayout(cpuBox);
@@ -131,7 +132,7 @@ void VmSettingsDialog::buildResources()
 
 void VmSettingsDialog::buildDisplay()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Display"), QIcon::fromTheme(QStringLiteral("video-display")));
+    QVBoxLayout *page = addPage(QStringLiteral("Display"), Icons::fromTheme(QStringLiteral("video-display")));
     auto *form = makeForm();
     m_graphics = Combos::graphics(this);
     Combos::select(m_graphics, m_cfg.graphics);
@@ -157,7 +158,7 @@ void VmSettingsDialog::buildDisplay()
 
 void VmSettingsDialog::buildStorage()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Storage"), QIcon::fromTheme(QStringLiteral("drive-harddisk")));
+    QVBoxLayout *page = addPage(QStringLiteral("Storage"), Icons::fromTheme(QStringLiteral("drive-harddisk")));
     auto *diskBox = new QGroupBox(QStringLiteral("Disks"), this);
     auto *dl = new QVBoxLayout(diskBox);
     m_disks = new QTreeWidget(diskBox);
@@ -167,9 +168,9 @@ void VmSettingsDialog::buildStorage()
     m_disks->setMinimumHeight(140);
     dl->addWidget(m_disks);
     auto *row = new QHBoxLayout;
-    auto *addExisting = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open")), QStringLiteral("Add Existing…"), diskBox);
-    auto *addNew = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Create New…"), diskBox);
-    auto *remove = new QPushButton(QIcon::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), diskBox);
+    auto *addExisting = new QPushButton(Icons::fromTheme(QStringLiteral("document-open")), QStringLiteral("Add Existing…"), diskBox);
+    auto *addNew = new QPushButton(Icons::fromTheme(QStringLiteral("list-add")), QStringLiteral("Create New…"), diskBox);
+    auto *remove = new QPushButton(Icons::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), diskBox);
     auto *bus = new QComboBox(diskBox);
     bus->addItem(QStringLiteral("VirtIO (fastest)"), QStringLiteral("virtio"));
     bus->addItem(QStringLiteral("SATA (most compatible)"), QStringLiteral("sata"));
@@ -250,7 +251,7 @@ void VmSettingsDialog::buildStorage()
         m_cd[i] = new QLineEdit(m_cfg.cdroms.value(i), cdBox);
         m_cd[i]->setPlaceholderText(QStringLiteral("Empty"));
         m_cd[i]->setClearButtonEnabled(true);
-        auto *browse = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open")), QString(), cdBox);
+        auto *browse = new QPushButton(Icons::fromTheme(QStringLiteral("document-open")), QString(), cdBox);
         QLineEdit *edit = m_cd[i];
         connect(browse, &QPushButton::clicked, this, [this, edit] {
             const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a disc image"), QDir::homePath(),
@@ -275,7 +276,7 @@ void VmSettingsDialog::refreshDisks()
         const DiskSpec &d = m_cfg.disks[i];
         const QString path = m_cfg.diskPath(i);
         auto *item = new QTreeWidgetItem(m_disks, {path, d.format, d.bus});
-        item->setIcon(0, QIcon::fromTheme(QFileInfo::exists(path) ? QStringLiteral("drive-harddisk")
+        item->setIcon(0, Icons::fromTheme(QFileInfo::exists(path) ? QStringLiteral("drive-harddisk")
                                                                   : QStringLiteral("dialog-warning")));
         if (!QFileInfo::exists(path))
             item->setToolTip(0, QStringLiteral("File not found"));
@@ -286,7 +287,7 @@ void VmSettingsDialog::refreshDisks()
 
 void VmSettingsDialog::buildNetwork()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Network"), QIcon::fromTheme(QStringLiteral("network-wired")),
+    QVBoxLayout *page = addPage(QStringLiteral("Network"), Icons::fromTheme(QStringLiteral("network-wired")),
                                 QStringLiteral("The VM gets NAT networking through QEMU (no root or bridge setup needed). "
                                                "Port forwards make guest services reachable from the host."));
     auto *form = makeForm();
@@ -312,9 +313,9 @@ void VmSettingsDialog::buildNetwork()
     m_forwards->setMinimumHeight(150);
     bl->addWidget(m_forwards);
     auto *row = new QHBoxLayout;
-    auto *add = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add"), box);
-    auto *ssh = new QPushButton(QIcon::fromTheme(QStringLiteral("utilities-terminal")), QStringLiteral("Add SSH"), box);
-    auto *remove = new QPushButton(QIcon::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), box);
+    auto *add = new QPushButton(Icons::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add"), box);
+    auto *ssh = new QPushButton(Icons::fromTheme(QStringLiteral("utilities-terminal")), QStringLiteral("Add SSH"), box);
+    auto *remove = new QPushButton(Icons::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), box);
     row->addWidget(add);
     row->addWidget(ssh);
     row->addWidget(remove);
@@ -365,8 +366,8 @@ void VmSettingsDialog::showPage(const QString &name)
 void VmSettingsDialog::buildUsb()
 {
     m_usbPage = m_nav->count();
-    QVBoxLayout *page = addPage(QStringLiteral("USB"), QIcon::fromTheme(QStringLiteral("drive-removable-media-usb"),
-                                                                       QIcon::fromTheme(QStringLiteral("drive-removable-media"))),
+    QVBoxLayout *page = addPage(QStringLiteral("USB"), Icons::fromTheme(QStringLiteral("drive-removable-media-usb"),
+                                                                       Icons::fromTheme(QStringLiteral("drive-removable-media"))),
                                 QStringLiteral("Devices listed here are handed to the VM automatically whenever it starts, and as "
                                                "soon as they're plugged in while it runs. To connect a device just for now, use "
                                                "the USB menu in the VM window."));
@@ -376,11 +377,11 @@ void VmSettingsDialog::buildUsb()
     page->addWidget(m_usbList);
 
     auto *row = new QHBoxLayout;
-    auto *add = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add Device"), this);
+    auto *add = new QPushButton(Icons::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add Device"), this);
     auto *addMenu = new QMenu(add);
     add->setMenu(addMenu);
-    auto *remove = new QPushButton(QIcon::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), this);
-    m_usbAllow = new QPushButton(QIcon::fromTheme(QStringLiteral("dialog-password")), QStringLiteral("Allow Access…"), this);
+    auto *remove = new QPushButton(Icons::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), this);
+    m_usbAllow = new QPushButton(Icons::fromTheme(QStringLiteral("dialog-password")), QStringLiteral("Allow Access…"), this);
     m_usbAllow->setToolTip(QStringLiteral("Installs a udev rule so your user may use this device (asks for the administrator password)."));
     row->addWidget(add);
     row->addWidget(remove);
@@ -455,7 +456,7 @@ void VmSettingsDialog::refreshUsbList()
             status = QStringLiteral("not plugged in");
         } else if (!present->accessible()) {
             status = QStringLiteral("needs permission");
-            icon = QIcon::fromTheme(QStringLiteral("dialog-warning"));
+            icon = Icons::fromTheme(QStringLiteral("dialog-warning"));
             if (i == selected)
                 selectedNeedsAccess = true;
         } else {
@@ -472,7 +473,7 @@ void VmSettingsDialog::refreshUsbList()
 
 void VmSettingsDialog::buildIntegration()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Integration"), QIcon::fromTheme(QStringLiteral("edit-paste")),
+    QVBoxLayout *page = addPage(QStringLiteral("Integration"), Icons::fromTheme(QStringLiteral("edit-paste")),
                                 QStringLiteral("Clipboard sharing and file drag & drop need the SPICE guest agent in the VM "
                                                "(Linux: spice-vdagent, Windows: virtio-win guest tools)."));
     auto *form = makeForm();
@@ -490,8 +491,8 @@ void VmSettingsDialog::buildIntegration()
 
 void VmSettingsDialog::buildFirmware()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Firmware"), QIcon::fromTheme(QStringLiteral("preferences-system"),
-                                                                            QIcon::fromTheme(QStringLiteral("configure"))));
+    QVBoxLayout *page = addPage(QStringLiteral("Firmware"), Icons::fromTheme(QStringLiteral("preferences-system"),
+                                                                            Icons::fromTheme(QStringLiteral("configure"))));
     const HostInfo &h = HostInfo::get();
     auto *form = makeForm();
     m_firmware = Combos::firmware(this);
@@ -528,8 +529,8 @@ void VmSettingsDialog::buildFirmware()
 
 void VmSettingsDialog::buildAdvanced()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Advanced"), QIcon::fromTheme(QStringLiteral("code-context"),
-                                                                            QIcon::fromTheme(QStringLiteral("utilities-terminal"))));
+    QVBoxLayout *page = addPage(QStringLiteral("Advanced"), Icons::fromTheme(QStringLiteral("code-context"),
+                                                                            Icons::fromTheme(QStringLiteral("utilities-terminal"))));
     auto *form = makeForm();
     m_extraArgs = new QLineEdit(m_cfg.extraArgs, this);
     m_extraArgs->setPlaceholderText(QStringLiteral("e.g. -device usb-host,vendorid=0x046d,productid=0xc52b"));
@@ -545,8 +546,8 @@ void VmSettingsDialog::buildAdvanced()
     m_command->setLineWrapMode(QPlainTextEdit::NoWrap);
     bl->addWidget(m_command);
     auto *row = new QHBoxLayout;
-    auto *copy = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-copy")), QStringLiteral("Copy"), box);
-    auto *log = new QPushButton(QIcon::fromTheme(QStringLiteral("text-x-log"), QIcon::fromTheme(QStringLiteral("document-open"))),
+    auto *copy = new QPushButton(Icons::fromTheme(QStringLiteral("edit-copy")), QStringLiteral("Copy"), box);
+    auto *log = new QPushButton(Icons::fromTheme(QStringLiteral("text-x-log"), Icons::fromTheme(QStringLiteral("document-open"))),
                                 QStringLiteral("Open Log"), box);
     row->addWidget(copy);
     row->addWidget(log);

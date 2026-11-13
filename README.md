@@ -28,7 +28,7 @@ hand-written `qemu-system-x86_64` command line.
 VMs run as **your user** (no root, no libvirt), each as an independent QEMU
 process. Closing BentoVM, or BentoVM crashing, doesn't take your VMs down; BentoVM
 reconnects to them on its next start. It looks like a regular KDE application
-on Plasma and works on other desktops too.
+on Plasma, and uses its own Modern theme on other desktops such as GNOME.
 
 ## Features
 
@@ -49,8 +49,10 @@ on Plasma and works on other desktops too.
   are listed) or an existing disk image. The OS is detected from the ISO's
   volume label, with `osinfo-detect` as a fallback, and CPU (cores × threads)
   and RAM are recommended from the OS and your hardware. Everything stays adjustable.
-- **Themes**: the native desktop style by default; *Modern Dark* and *Modern
-  Light* give a self-contained look with rounded cards and a green gradient accent.
+- **Themes**: by default, the native style on desktops that provide one (KDE
+  Plasma), otherwise *Modern Light* or *Modern Dark* to match your colour
+  scheme. The Modern themes give a self-contained look with rounded cards and a
+  green gradient accent. Icons always come from your icon theme.
 - UEFI/BIOS, Secure Boot, TPM 2.0 (with `swtpm`), port forwarding (SSH by
   default for Linux guests), PipeWire/PulseAudio sound, CD/ISO hot-swap,
   screenshots, "send key" combos, and the generated QEMU command line in VM settings.
@@ -109,7 +111,8 @@ chmod +x BentoVM-*-x86_64.AppImage
 
 The AppImage contains BentoVM, Qt and KDE's Breeze style and Plasma
 integration, so on KDE Plasma it looks and behaves like a native application
-(your fonts, colours and file dialogs). QEMU, virglrenderer, OVMF and the GPU
+(your fonts, colours and file dialogs). On GNOME and other desktops it uses the
+Modern theme in your colour scheme, with your icon theme. QEMU, virglrenderer, OVMF and the GPU
 drivers come from your system (see [Requirements](#requirements)). It runs on
 distributions with glibc 2.39 or newer (Ubuntu 24.04, Fedora 40, Debian 13,
 Arch and newer).
@@ -308,8 +311,10 @@ then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the
 virtio port emulated by `socat PTY,… UNIX-LISTEN:…`).
 
-`packaging/appimage/test-distros.sh` smoke-tests the AppImage on Fedora and
-Ubuntu (and any other distribution image you pass) in containers.
+`packaging/appimage/test-distros.sh` smoke-tests the AppImage in containers on
+Fedora, Ubuntu 24.04 and 26.04 and Arch (or the distribution images you pass),
+as in a KDE Plasma and in a GNOME session. `theme_shot` prints the theme, style
+and icon theme a build picks and saves screenshots of its windows.
 
 `readme_shots` regenerates the images in `docs/screenshots/` from a staged
 sample library (it boots a Linux live ISO and a Windows installer ISO).

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VmCard.h"
+#include "Icons.h"
 #include "OsIcon.h"
 #include "Theme.h"
 #include "core/OsDb.h"
@@ -19,8 +20,9 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
-static constexpr int kCardWidth = 284;
-static constexpr int kThumbW = 252;
+static constexpr int kCardWidth = 284;    // minimum; see fitToFont()
+static constexpr int kCardHeight = 292;
+static constexpr int kThumbW = 252;       // at the minimum card width; 16:9
 static constexpr int kThumbH = 142;
 
 VmCard::VmCard(Vm *vm, QWidget *parent)
@@ -30,12 +32,12 @@ VmCard::VmCard(Vm *vm, QWidget *parent)
     setObjectName(QStringLiteral("vmCard"));
     setAttribute(Qt::WA_StyledBackground, true);
     setAttribute(Qt::WA_Hover, true);
-    setFixedSize(kCardWidth, 292);
+    setFixedSize(kCardWidth, kCardHeight);
     setAcceptDrops(true);
     setCursor(Qt::PointingHandCursor);
 
     m_thumb = new QLabel(this);
-    m_thumb->setFixedSize(kThumbW, kThumbH);
+    m_thumb->setFixedSize(m_thumbSize);
     m_name = new QLabel(this);
     m_name->setObjectName(QStringLiteral("vmCardName"));
     QFont nf = m_name->font();
@@ -54,15 +56,15 @@ VmCard::VmCard(Vm *vm, QWidget *parent)
     m_primary->setCursor(Qt::PointingHandCursor);
     m_menu = new QToolButton(this);
     m_menu->setObjectName(QStringLiteral("cardButton"));
-    m_menu->setIcon(QIcon::fromTheme(QStringLiteral("overflow-menu"), QIcon::fromTheme(QStringLiteral("application-menu"))));
+    m_menu->setIcon(Icons::fromTheme(QStringLiteral("overflow-menu"), Icons::fromTheme(QStringLiteral("application-menu"))));
     m_menu->setToolTip(QStringLiteral("More actions"));
     m_menu->setCursor(Qt::PointingHandCursor);
 
-    auto *bottom = new QHBoxLayout;
-    bottom->setContentsMargins(0, 0, 0, 0);
-    bottom->addWidget(m_status, 1);
-    bottom->addWidget(m_primary);
-    bottom->addWidget(m_menu);
+    m_bottomRow = new QHBoxLayout;
+    m_bottomRow->setContentsMargins(0, 0, 0, 0);
+    m_bottomRow->addWidget(m_status, 1);
+    m_bottomRow->addWidget(m_primary);
+    m_bottomRow->addWidget(m_menu);
 
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(16, 16, 16, 14);
@@ -72,7 +74,7 @@ VmCard::VmCard(Vm *vm, QWidget *parent)
     lay->addWidget(m_name);
     lay->addWidget(m_sub);
     lay->addStretch();
-    lay->addLayout(bottom);
+    lay->addLayout(m_bottomRow);
 
     connect(m_primary, &QToolButton::clicked, this, [this] { Q_EMIT activated(this); });
     connect(m_menu, &QToolButton::clicked, this, [this] {
@@ -89,41 +91,52 @@ VmCard::VmCard(Vm *vm, QWidget *parent)
 QPixmap VmCard::thumbnailPixmap() const
 {
     const qreal dpr = devicePixelRatioF();
+    const int tw = m_thumbSize.width(), th = m_thumbSize.height();
     QPixmap base;
     if (!m_vm->thumbnail().isNull()) {
-        const QImage img = m_vm->thumbnail().scaled(QSize(kThumbW, kThumbH) * dpr, Qt::KeepAspectRatioByExpanding,
+        const QImage img = m_vm->thumbnail().scaled(QSize(tw, th) * dpr, Qt::KeepAspectRatioByExpanding,
                                                     Qt::SmoothTransformation);
-        base = QPixmap::fromImage(img.copy((img.width() - int(kThumbW * dpr)) / 2, (img.height() - int(kThumbH * dpr)) / 2,
-                                           int(kThumbW * dpr), int(kThumbH * dpr)));
+        base = QPixmap::fromImage(img.copy((img.width() - int(tw * dpr)) / 2, (img.height() - int(th * dpr)) / 2,
+                                           int(tw * dpr), int(th * dpr)));
         base.setDevicePixelRatio(dpr);
     } else {
-        base = OsIcon::placeholder(m_vm->config().osId, QSize(kThumbW, kThumbH), dpr);
+        base = OsIcon::placeholder(m_vm->config().osId, QSize(tw, th), dpr);
     }
 
-    QPixmap out(QSize(kThumbW, kThumbH) * dpr);
+    QPixmap out(QSize(tw, th) * dpr);
     out.setDevicePixelRatio(dpr);
     out.fill(Qt::transparent);
     QPainter p(&out);
     p.setRenderHint(QPainter::Antialiasing);
     p.setRenderHint(QPainter::SmoothPixmapTransform);
     QPainterPath clip;
-    clip.addRoundedRect(QRectF(0, 0, kThumbW, kThumbH), 12, 12);
+    clip.addRoundedRect(QRectF(0, 0, tw, th), 12, 12);
     p.setClipPath(clip);
     p.drawPixmap(0, 0, base);
 
     if (!m_vm->isAvailable()) {
         // Dim + desaturate and show a "drive missing" glyph.
-        p.fillRect(QRect(0, 0, kThumbW, kThumbH), QColor(10, 12, 18, 170));
-        const QIcon icon = QIcon::fromTheme(QStringLiteral("drive-removable-media"),
-                                            QIcon::fromTheme(QStringLiteral("dialog-warning")));
-        icon.paint(&p, QRect(kThumbW / 2 - 24, kThumbH / 2 - 34, 48, 48));
+        p.fillRect(QRect(0, 0, tw, th), QColor(10, 12, 18, 170));
+        const QIcon icon = Icons::fromTheme(QStringLiteral("drive-removable-media"),
+                                            Icons::fromTheme(QStringLiteral("dialog-warning")));
+        const QRect iconRect(tw / 2 - 24, th / 2 - 34, 48, 48);
+        if (Icons::isSymbolic(icon)) {   // a glyph in the text colour; white reads on the dimmed image
+            QPixmap glyph = icon.pixmap(iconRect.size(), dpr);
+            QPainter g(&glyph);
+            g.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            g.fillRect(QRect(QPoint(), glyph.size()), Qt::white);
+            g.end();
+            p.drawPixmap(iconRect, glyph);
+        } else {
+            icon.paint(&p, iconRect);
+        }
         p.setPen(Qt::white);
         QFont f = font();
         f.setBold(true);
         p.setFont(f);
-        p.drawText(QRect(0, kThumbH / 2 + 18, kThumbW, 24), Qt::AlignCenter, QStringLiteral("Temporarily unavailable"));
+        p.drawText(QRect(0, th / 2 + 18, tw, 24), Qt::AlignCenter, QStringLiteral("Temporarily unavailable"));
     } else if (m_vm->state() == Vm::State::Stopped && !m_vm->thumbnail().isNull()) {
-        p.fillRect(QRect(0, 0, kThumbW, kThumbH), QColor(0, 0, 0, 70));
+        p.fillRect(QRect(0, 0, tw, th), QColor(0, 0, 0, 70));
     }
     return out;
 }
@@ -134,7 +147,7 @@ void VmCard::refresh()
         return;
     const VmConfig &c = m_vm->config();
     const QFontMetrics fm(m_name->font());
-    m_name->setText(fm.elidedText(c.name, Qt::ElideRight, kThumbW));
+    m_name->setText(fm.elidedText(c.name, Qt::ElideRight, m_thumbSize.width()));
     m_name->setToolTip(c.name);
     m_thumb->setPixmap(thumbnailPixmap());
 
@@ -171,13 +184,56 @@ void VmCard::refresh()
     m_primary->setEnabled(m_vm->isAvailable() || active);
     if (active) {
         m_primary->setText(QStringLiteral("Open"));
-        m_primary->setIcon(QIcon::fromTheme(QStringLiteral("window-new"), QIcon::fromTheme(QStringLiteral("view-fullscreen"))));
+        m_primary->setIcon(Theme::onAccent(
+            Icons::fromTheme(QStringLiteral("window-new"), Icons::fromTheme(QStringLiteral("view-fullscreen")))));
     } else {
         m_primary->setText(QStringLiteral("Start"));
-        m_primary->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-start")));
+        m_primary->setIcon(Theme::onAccent(Icons::fromTheme(QStringLiteral("media-playback-start"))));
     }
     m_primary->setToolTip(m_vm->isAvailable() ? QString() : m_vm->unavailableReason());
+    fitToFont();
     update();
+}
+
+// The card is designed around KDE's default font. Larger ones, such as GNOME's
+// Adwaita Sans 11 pt, need more room. Sizes come from the longest texts the
+// bottom row can show, so every card stays the same size.
+void VmCard::fitToFont()
+{
+    if (!m_status || !m_primary || !layout())   // change events during construction
+        return;
+    const QFontMetrics fm(m_status->font());
+    int label = fm.horizontalAdvance(QStringLiteral("Unavailable"));
+    for (Vm::State s : {Vm::State::Stopped, Vm::State::Starting, Vm::State::Running, Vm::State::Paused,
+                        Vm::State::Stopping})
+        label = std::max(label, fm.horizontalAdvance(Vm::stateLabel(s)));
+    QFont dot = m_status->font();
+    dot.setPointSizeF(14);   // matches the status markup in refresh()
+    m_status->setMinimumWidth(QFontMetrics(dot).horizontalAdvance(QChar(0x25CF)) + fm.horizontalAdvance(QChar(0xA0))
+                              + label + 2);
+
+    const QFontMetrics bm(m_primary->font());
+    const int widest = std::max(bm.horizontalAdvance(QStringLiteral("Start")), bm.horizontalAdvance(QStringLiteral("Open")));
+    m_primary->setMinimumWidth(m_primary->sizeHint().width() - bm.horizontalAdvance(m_primary->text()) + widest);
+
+    const QMargins margins = layout()->contentsMargins();
+    const int w = std::max(kCardWidth, margins.left() + m_bottomRow->minimumSize().width() + margins.right());
+    const int thumbW = w - margins.left() - margins.right();
+    const QSize thumb(thumbW, thumbW * kThumbH / kThumbW);
+    if (thumb != m_thumbSize) {
+        m_thumbSize = thumb;
+        m_thumb->setFixedSize(thumb);
+        m_thumb->setPixmap(thumbnailPixmap());
+        m_name->setText(QFontMetrics(m_name->font()).elidedText(m_vm->config().name, Qt::ElideRight, thumbW));
+    }
+    setFixedSize(w, std::max(kCardHeight + thumb.height() - kThumbH, layout()->totalHeightForWidth(w)));
+}
+
+void VmCard::changeEvent(QEvent *e)
+{
+    QWidget::changeEvent(e);
+    if (e->type() == QEvent::FontChange || e->type() == QEvent::StyleChange)
+        fitToFont();
 }
 
 void VmCard::setSelected(bool on)

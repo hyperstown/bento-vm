@@ -6,6 +6,7 @@
 #include <QPointer>
 #include <QWidget>
 
+class QHBoxLayout;
 class QLabel;
 class QToolButton;
 class Vm;
@@ -36,8 +37,10 @@ protected:
     void leaveEvent(QEvent *e) override;
     void dragEnterEvent(QDragEnterEvent *e) override;
     void dropEvent(QDropEvent *e) override;
+    void changeEvent(QEvent *e) override;
 
 private:
+    void fitToFont();
     QPixmap thumbnailPixmap() const;
 
     QPointer<Vm> m_vm;
@@ -47,6 +50,8 @@ private:
     QLabel *m_status = nullptr;
     QToolButton *m_primary = nullptr;
     QToolButton *m_menu = nullptr;
+    QHBoxLayout *m_bottomRow = nullptr;
+    QSize m_thumbSize{252, 142};
     bool m_selected = false;
     bool m_hover = false;
 };

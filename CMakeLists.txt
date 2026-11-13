@@ -41,6 +41,7 @@ add_library(bento_core OBJECT
     src/agent/VdAgent.cpp
 
     src/ui/Theme.cpp
+    src/ui/Icons.cpp
     src/ui/OsIcon.cpp
     src/ui/FlowLayout.cpp
     src/ui/ResourceEditors.cpp

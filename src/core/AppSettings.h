@@ -21,7 +21,7 @@ public:
     QString defaultLocation() const;
     void setDefaultLocation(const QString &location);
 
-    QString theme() const;                // "system" | "modern-dark" | "modern-light"
+    QString theme() const;                // "auto" | "system" | "modern-dark" | "modern-light"
     void setTheme(const QString &theme);
 
     QString closeAction() const;          // "ask" | "keep" | "shutdown"

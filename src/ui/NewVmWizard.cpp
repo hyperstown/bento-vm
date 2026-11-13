@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "NewVmWizard.h"
+#include "Icons.h"
 #include "OsIcon.h"
 #include "PageDialog.h"
 #include "ResourceEditors.h"
 #include "SettingsDialog.h"
+#include "Theme.h"
 #include "core/AppSettings.h"
 #include "core/DiskOps.h"
 #include "core/HostInfo.h"
@@ -191,8 +193,8 @@ NewVmWizard::NewVmWizard(QWidget *parent)
     m_pages->addWidget(buildSummaryPage());
 
     m_cancel = new QPushButton(QStringLiteral("Cancel"), this);
-    m_back = new QPushButton(QIcon::fromTheme(QStringLiteral("go-previous")), QStringLiteral("Back"), this);
-    m_next = new QPushButton(QIcon::fromTheme(QStringLiteral("go-next")), QStringLiteral("Next"), this);
+    m_back = new QPushButton(Icons::fromTheme(QStringLiteral("go-previous")), QStringLiteral("Back"), this);
+    m_next = new QPushButton(QStringLiteral("Next"), this);   // icon set in updateButtons()
     m_next->setDefault(true);
     m_next->setProperty("accent", true);
     m_next->setMinimumWidth(120);
@@ -265,7 +267,7 @@ QWidget *NewVmWizard::buildSourcePage()
     m_isoPath = new QLineEdit(isoExtra);
     m_isoPath->setPlaceholderText(QStringLiteral("Choose or drop an .iso file…"));
     m_isoPath->setClearButtonEnabled(true);
-    auto *isoBrowse = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open")), QStringLiteral("Browse…"), isoExtra);
+    auto *isoBrowse = new QPushButton(Icons::fromTheme(QStringLiteral("document-open")), QStringLiteral("Browse…"), isoExtra);
     auto *ir = new QHBoxLayout;
     ir->addWidget(m_isoPath, 1);
     ir->addWidget(isoBrowse);
@@ -287,7 +289,7 @@ QWidget *NewVmWizard::buildSourcePage()
     m_diskPath = new QLineEdit(diskExtra);
     m_diskPath->setPlaceholderText(QStringLiteral("Choose a .qcow2, .img, .raw, .vmdk or .vdi file…"));
     m_diskPath->setClearButtonEnabled(true);
-    auto *diskBrowse = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open")), QStringLiteral("Browse…"), diskExtra);
+    auto *diskBrowse = new QPushButton(Icons::fromTheme(QStringLiteral("document-open")), QStringLiteral("Browse…"), diskExtra);
     auto *dr = new QHBoxLayout;
     dr->addWidget(m_diskPath, 1);
     dr->addWidget(diskBrowse);
@@ -442,8 +444,8 @@ QWidget *NewVmWizard::buildResourcesPage()
 
     const AppSettings &s = AppSettings::instance();
     for (const QString &loc : s.storageLocations())
-        m_location->addItem(QIcon::fromTheme(QStringLiteral("folder")), loc, loc);
-    m_location->addItem(QIcon::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Other folder…"), QString());
+        m_location->addItem(Icons::fromTheme(QStringLiteral("folder")), loc, loc);
+    m_location->addItem(Icons::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Other folder…"), QString());
     Combos::select(m_location, s.defaultLocation());
 
     connect(m_location, &QComboBox::activated, this, [this](int i) {
@@ -455,7 +457,7 @@ QWidget *NewVmWizard::buildResourcesPage()
         if (dir.isEmpty()) {
             Combos::select(m_location, AppSettings::instance().defaultLocation());
         } else {
-            m_location->insertItem(i, QIcon::fromTheme(QStringLiteral("folder")), dir, dir);
+            m_location->insertItem(i, Icons::fromTheme(QStringLiteral("folder")), dir, dir);
             m_location->setCurrentIndex(i);
         }
         updateLocationInfo();
@@ -607,7 +609,8 @@ void NewVmWizard::updateButtons()
     const int i = m_pages->currentIndex();
     m_back->setEnabled(i > 0);
     m_next->setText(i == SummaryPage ? QStringLiteral("Create") : QStringLiteral("Next"));
-    m_next->setIcon(QIcon::fromTheme(i == SummaryPage ? QStringLiteral("dialog-ok-apply") : QStringLiteral("go-next")));
+    m_next->setIcon(Theme::onAccent(
+        Icons::fromTheme(i == SummaryPage ? QStringLiteral("dialog-ok-apply") : QStringLiteral("go-next"))));
     if (i == SourcePage)
         m_next->setEnabled(!sourcePath().isEmpty());
     else
@@ -746,7 +749,7 @@ void NewVmWizard::startDetection()
     }
     m_detectTitle->setText(QStringLiteral("Detecting the operating system…"));
     m_detectDetail->setText(QFileInfo(path).fileName());
-    m_detectIcon->setPixmap(QIcon::fromTheme(QStringLiteral("search")).pixmap(64, 64));
+    m_detectIcon->setPixmap(Icons::fromTheme(QStringLiteral("search")).pixmap(64, 64));
     m_next->setEnabled(false);
     m_detectWatcher.setFuture(QtConcurrent::run([path] { return OsDb::detect(path); }));
 }

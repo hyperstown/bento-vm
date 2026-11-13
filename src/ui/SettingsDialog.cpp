@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "SettingsDialog.h"
+#include "Icons.h"
 #include "Theme.h"
 #include "core/AppSettings.h"
 #include "core/HostInfo.h"
@@ -91,7 +92,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     : PageDialog(parent)
 {
     setWindowTitle(QStringLiteral("Configure BentoVM"));
-    m_originalTheme = Theme::instance()->current();
+    m_originalTheme = Theme::instance()->selected();
     buildAppearance();
     buildStorage();
     buildDefaults();
@@ -103,7 +104,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     connect(m_buttons, &QDialogButtonBox::rejected, this, &SettingsDialog::reject);
     connect(m_buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, [this] {
         save();
-        m_originalTheme = Theme::instance()->current();
+        m_originalTheme = Theme::instance()->selected();
     });
 }
 
@@ -114,9 +115,10 @@ void SettingsDialog::showStoragePage()
 
 void SettingsDialog::buildAppearance()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Appearance"), QIcon::fromTheme(QStringLiteral("preferences-desktop-theme")),
-                                QStringLiteral("BentoVM looks like a regular KDE application by default. The Modern themes give "
-                                               "it a self-contained look with rounded cards and a green accent."));
+    QVBoxLayout *page = addPage(QStringLiteral("Appearance"), Icons::fromTheme(QStringLiteral("preferences-desktop-theme")),
+                                QStringLiteral("By default BentoVM looks like a regular KDE application on KDE Plasma and uses its "
+                                               "Modern theme on other desktops. The Modern themes give it a "
+                                               "self-contained look with rounded cards and a green accent."));
     m_themeGroup = new QButtonGroup(this);
     for (const Theme::Info &t : Theme::available()) {
         auto *card = new QFrame(this);
@@ -133,7 +135,7 @@ void SettingsDialog::buildAppearance()
         auto *desc = PageDialog::hint(t.description, card);
         desc->setContentsMargins(24, 0, 0, 0);
         cl->addWidget(desc);
-        if (t.id == Theme::instance()->current())
+        if (t.id == Theme::instance()->selected())
             rb->setChecked(true);
         page->addWidget(card);
     }
@@ -146,7 +148,7 @@ void SettingsDialog::buildAppearance()
 void SettingsDialog::buildStorage()
 {
     m_storagePage = m_nav->count();
-    QVBoxLayout *page = addPage(QStringLiteral("Storage"), QIcon::fromTheme(QStringLiteral("drive-harddisk")),
+    QVBoxLayout *page = addPage(QStringLiteral("Storage"), Icons::fromTheme(QStringLiteral("drive-harddisk")),
                                 QStringLiteral("Folders where BentoVM keeps virtual machines. New VMs go to the default "
                                                "location. Locations on external drives are fine: their VMs show as "
                                                "“temporarily unavailable” while the drive is disconnected."));
@@ -162,11 +164,11 @@ void SettingsDialog::buildStorage()
     page->addWidget(m_locationList);
 
     auto *row = new QHBoxLayout;
-    auto *add = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add Location…"), this);
-    auto *remove = new QPushButton(QIcon::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), this);
-    auto *makeDefault = new QPushButton(QIcon::fromTheme(QStringLiteral("starred-symbolic"), QIcon::fromTheme(QStringLiteral("rating"))),
+    auto *add = new QPushButton(Icons::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add Location…"), this);
+    auto *remove = new QPushButton(Icons::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), this);
+    auto *makeDefault = new QPushButton(Icons::fromTheme(QStringLiteral("starred-symbolic"), Icons::fromTheme(QStringLiteral("rating"))),
                                         QStringLiteral("Make Default"), this);
-    auto *open = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Open"), this);
+    auto *open = new QPushButton(Icons::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Open"), this);
     row->addWidget(add);
     row->addWidget(remove);
     row->addWidget(makeDefault);
@@ -224,8 +226,8 @@ void SettingsDialog::refreshLocations()
             status = QStringLiteral("Not available right now (drive disconnected?)");
         }
         auto *item = new QListWidgetItem(
-            QIcon::fromTheme(exists ? QStringLiteral("folder") : QStringLiteral("folder-important"),
-                             QIcon::fromTheme(QStringLiteral("folder"))),
+            Icons::fromTheme(exists ? QStringLiteral("folder") : QStringLiteral("folder-important"),
+                             Icons::fromTheme(QStringLiteral("folder"))),
             QStringLiteral("%1%2\n%3").arg(loc, loc == m_defaultLocation ? QStringLiteral("   (default)") : QString(), status),
             m_locationList);
         if (loc == m_defaultLocation) {
@@ -239,7 +241,7 @@ void SettingsDialog::refreshLocations()
 
 void SettingsDialog::buildDefaults()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("New VMs"), QIcon::fromTheme(QStringLiteral("document-new")),
+    QVBoxLayout *page = addPage(QStringLiteral("New VMs"), Icons::fromTheme(QStringLiteral("document-new")),
                                 QStringLiteral("Defaults the setup wizard starts from. Operating systems that need different "
                                                "settings (e.g. Windows) override them."));
     const AppSettings &s = AppSettings::instance();
@@ -267,7 +269,7 @@ void SettingsDialog::buildDefaults()
 
 void SettingsDialog::buildBehaviour()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("Behavior"), QIcon::fromTheme(QStringLiteral("preferences-system-windows")));
+    QVBoxLayout *page = addPage(QStringLiteral("Behavior"), Icons::fromTheme(QStringLiteral("preferences-system-windows")));
     auto *form = makeForm();
     m_closeAction = new QComboBox(this);
     m_closeAction->addItem(QStringLiteral("Ask every time"), QStringLiteral("ask"));
@@ -283,13 +285,13 @@ void SettingsDialog::buildBehaviour()
 
 void SettingsDialog::buildQemu()
 {
-    QVBoxLayout *page = addPage(QStringLiteral("QEMU"), QIcon::fromTheme(QStringLiteral("utilities-terminal")),
+    QVBoxLayout *page = addPage(QStringLiteral("QEMU"), Icons::fromTheme(QStringLiteral("utilities-terminal")),
                                 QStringLiteral("What BentoVM found on this system."));
     const HostInfo &h = HostInfo::get();
     auto *form = makeForm();
     m_qemuBinary = new QLineEdit(AppSettings::instance().qemuBinary(), this);
     m_qemuBinary->setPlaceholderText(HostInfo::qemuBinary());
-    auto *browse = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open")), QString(), this);
+    auto *browse = new QPushButton(Icons::fromTheme(QStringLiteral("document-open")), QString(), this);
     connect(browse, &QPushButton::clicked, this, [this] {
         const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("QEMU binary"), QStringLiteral("/usr/bin"));
         if (!f.isEmpty())
@@ -358,7 +360,7 @@ void SettingsDialog::accept()
 
 void SettingsDialog::reject()
 {
-    if (Theme::instance()->current() != m_originalTheme)
+    if (Theme::instance()->selected() != m_originalTheme)
         Theme::instance()->apply(m_originalTheme);
     QDialog::reject();
 }

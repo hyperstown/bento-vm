@@ -3,6 +3,7 @@
 
 #include "UsbDevices.h"
 #include "Paths.h"
+#include "ui/Icons.h"
 
 #include <QDir>
 #include <QFile>
@@ -191,7 +192,7 @@ QString nameFromDatabase(const QString &vendorId, const QString &productId)
 QIcon iconFor(UsbDevice::Kind kind)
 {
     const auto icon = [](const char *name, const char *fallback) {
-        return QIcon::fromTheme(QLatin1String(name), QIcon::fromTheme(QLatin1String(fallback)));
+        return Icons::fromTheme(QLatin1String(name), Icons::fromTheme(QLatin1String(fallback)));
     };
     switch (kind) {
     case UsbDevice::Kind::GameController: return icon("input-gaming", "applications-games");

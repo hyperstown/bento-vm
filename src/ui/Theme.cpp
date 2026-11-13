@@ -2,14 +2,26 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Theme.h"
+#include "Icons.h"
 
+#include <QAbstractButton>
 #include <QApplication>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QIcon>
+#include <QIconEngine>
+#include <QLoggingCategory>
+#include <QPainter>
 #include <QPalette>
+#include <QPointer>
+#include <QPushButton>
 #include <QStyle>
 #include <QStyleFactory>
+#include <QStyleHints>
+
+Q_LOGGING_CATEGORY(lcTheme, "bento.theme", QtInfoMsg)
 
 namespace {
 
@@ -29,6 +41,7 @@ constexpr Colors kModernLight{"#f3f4f8", "#ffffff", "#eef0f6", "#e7eaf3", "#dde1
 
 const char *kQss = R"QSS(
 QMainWindow, QDialog, QWizard, QWizardPage { background: @bg; }
+QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }   /* set by updateDialogButtonIcons() */
 QWidget { color: @text; }
 QWidget#pageBackground, QStackedWidget#mainStack, QWidget#vmGrid { background: @bg; }
 QMenuBar { background: @bg; }
@@ -193,7 +206,109 @@ QPalette buildPalette(const Colors &c)
     return p;
 }
 
+// Breeze's dark glyphs are hard to see on the green gradient. Checks the theme
+// at paint time, so it follows live theme switches. With a button, only while
+// that is the dialog's default (green) one, which moves with the focus.
+class OnAccentIconEngine : public QIconEngine
+{
+public:
+    explicit OnAccentIconEngine(const QIcon &icon, const QPushButton *button = nullptr)
+        : m_icon(icon), m_button(button), m_followButton(button)
+    {
+    }
+    QIconEngine *clone() const override
+    {
+        auto *e = new OnAccentIconEngine(m_icon, m_button);
+        e->m_followButton = m_followButton;
+        return e;
+    }
+    QString key() const override { return QStringLiteral("bento-on-accent"); }
+    bool isNull() override { return m_icon.isNull(); }
+    QSize actualSize(const QSize &size, QIcon::Mode mode, QIcon::State state) override
+    {
+        return m_icon.actualSize(size, mode, state);
+    }
+    QPixmap pixmap(const QSize &size, QIcon::Mode mode, QIcon::State state) override
+    {
+        return scaledPixmap(size, mode, state, 1.0);
+    }
+    QPixmap scaledPixmap(const QSize &size, QIcon::Mode mode, QIcon::State state, qreal scale) override
+    {
+        QPixmap pm = m_icon.pixmap(size, scale, mode, state);
+        if (pm.isNull() || mode == QIcon::Disabled || !Theme::instance()->isCustom())
+            return pm;
+        if (m_followButton && !(m_button && (m_button->isDefault() || m_button->property("accent").toBool())))
+            return pm;
+        QPainter p(&pm);
+        p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        p.fillRect(QRect(QPoint(), pm.size()), Qt::white);
+        return pm;
+    }
+    void paint(QPainter *p, const QRect &rect, QIcon::Mode mode, QIcon::State state) override
+    {
+        const qreal dpr = p->device() ? p->device()->devicePixelRatio() : qApp->devicePixelRatio();
+        p->drawPixmap(rect, scaledPixmap(rect.size(), mode, state, dpr));
+    }
+
+private:
+    QIcon m_icon;
+    QPointer<const QPushButton> m_button;
+    bool m_followButton = false;
+};
+
+// Icons on OK/Cancel/… buttons. Where the icon theme lacks them (GNOME's), Qt
+// falls back to coloured bitmaps that clash with the Modern themes, so these
+// use the theme's glyphs or none. QDialogButtonBox picks icons only when it
+// creates its buttons; this runs when a box is shown and on theme switches.
+void updateDialogButtonIcons(QDialogButtonBox *box, bool modern)
+{
+    struct Icon
+    {
+        QStyle::StandardPixmap pixmap;
+        const char *name;
+    };
+    static const QHash<QDialogButtonBox::StandardButton, Icon> icons{
+        {QDialogButtonBox::Ok, {QStyle::SP_DialogOkButton, "dialog-ok"}},
+        {QDialogButtonBox::Cancel, {QStyle::SP_DialogCancelButton, "dialog-cancel"}},
+        {QDialogButtonBox::Apply, {QStyle::SP_DialogApplyButton, "dialog-ok-apply"}},
+        {QDialogButtonBox::Close, {QStyle::SP_DialogCloseButton, "dialog-close"}},
+        {QDialogButtonBox::Yes, {QStyle::SP_DialogYesButton, "dialog-ok"}},
+        {QDialogButtonBox::No, {QStyle::SP_DialogNoButton, "dialog-cancel"}},
+        {QDialogButtonBox::Save, {QStyle::SP_DialogSaveButton, "document-save"}},
+        {QDialogButtonBox::Discard, {QStyle::SP_DialogDiscardButton, "edit-delete"}},
+        {QDialogButtonBox::Help, {QStyle::SP_DialogHelpButton, "help-contents"}},
+        {QDialogButtonBox::Reset, {QStyle::SP_DialogResetButton, "edit-undo"}},
+        {QDialogButtonBox::Open, {QStyle::SP_DialogOpenButton, "document-open"}},
+        {QDialogButtonBox::RestoreDefaults, {QStyle::SP_RestoreDefaultsButton, "document-revert"}},
+    };
+    const bool styleIcons = box->style()->styleHint(QStyle::SH_DialogButtonBox_ButtonsHaveIcons, nullptr, box);
+    for (QAbstractButton *b : box->buttons()) {
+        const auto it = icons.constFind(box->standardButton(b));
+        if (it == icons.cend())
+            continue;
+        if (modern) {
+            const QIcon icon = Icons::fromTheme(QLatin1String(it->name));
+            b->setIcon(icon.isNull() ? QIcon() : QIcon(new OnAccentIconEngine(icon, qobject_cast<QPushButton *>(b))));
+        } else {
+            b->setIcon(styleIcons ? box->style()->standardIcon(it->pixmap, nullptr, b) : QIcon());
+        }
+    }
+}
+
 } // namespace
+
+bool Theme::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Show)
+        if (auto *box = qobject_cast<QDialogButtonBox *>(watched))
+            updateDialogButtonIcons(box, isCustom());
+    return QObject::eventFilter(watched, event);
+}
+
+QIcon Theme::onAccent(const QIcon &icon)
+{
+    return QIcon(new OnAccentIconEngine(icon));
+}
 
 Theme *Theme::instance()
 {
@@ -203,9 +318,21 @@ Theme *Theme::instance()
 
 QList<Theme::Info> Theme::available()
 {
+    const Theme *t = instance();
+    const QString look = t->automaticLook();
+    QString now;
+    if (look == QLatin1String("system"))
+        now = QStringLiteral("On this desktop: System (%1).").arg(t->desktopStyleName());
+    else
+        now = QStringLiteral("This desktop has no Qt style, so it uses %1.")
+                  .arg(look == QLatin1String("modern-dark") ? QStringLiteral("Modern Dark") : QStringLiteral("Modern Light"));
     return {
-        {QStringLiteral("system"), QStringLiteral("System (KDE)"),
-         QStringLiteral("Follows your desktop style and colour scheme, like any KDE application.")},
+        {QStringLiteral("auto"), QStringLiteral("Automatic"),
+         QStringLiteral("Your desktop's own style where it provides one, as KDE Plasma does, otherwise the Modern "
+                        "theme in your colour scheme. ") + now},
+        {QStringLiteral("system"), QStringLiteral("System"),
+         QStringLiteral("Always follows your desktop's Qt style and colour scheme, like any KDE application. Without "
+                        "a desktop style, this is Qt's plain built-in look.")},
         {QStringLiteral("modern-dark"), QStringLiteral("Modern Dark"),
          QStringLiteral("Dark look with rounded cards and a green gradient accent.")},
         {QStringLiteral("modern-light"), QStringLiteral("Modern Light"),
@@ -220,14 +347,52 @@ void Theme::init()
     m_origStyle = QApplication::style()->name();
     m_origPalette = new QPalette(QApplication::palette());
     g_origIconTheme = QIcon::themeName();
+    qApp->installEventFilter(this);   // dialog button icons, see updateDialogButtonIcons()
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
+        if (m_selected == QLatin1String("auto") && automaticLook() != m_current)
+            apply(m_selected);
+    });
+}
+
+bool Theme::hasDesktopStyle() const
+{
+    // Qt's own styles are what it falls back to when the desktop (GNOME, Xfce, …)
+    // doesn't provide one, or its style plugin fails to load.
+    const QString style = m_origStyle.isEmpty() ? QApplication::style()->name() : m_origStyle;
+    for (const char *builtIn : {"fusion", "windows"})
+        if (style.compare(QLatin1String(builtIn), Qt::CaseInsensitive) == 0)
+            return false;
+    return !style.isEmpty();
+}
+
+QString Theme::desktopStyleName() const
+{
+    return m_origStyle.isEmpty() ? m_origStyle : m_origStyle.front().toUpper() + m_origStyle.mid(1);
+}
+
+QString Theme::automaticLook() const
+{
+    if (hasDesktopStyle())
+        return QStringLiteral("system");
+    bool dark = false;
+    switch (QGuiApplication::styleHints()->colorScheme()) {
+    case Qt::ColorScheme::Dark: dark = true; break;
+    case Qt::ColorScheme::Light: dark = false; break;
+    default: dark = m_origPalette && m_origPalette->color(QPalette::Window).lightness() < 128; break;
+    }
+    return dark ? QStringLiteral("modern-dark") : QStringLiteral("modern-light");
 }
 
 void Theme::apply(const QString &id)
 {
     init();
-    const Colors *c = id == QLatin1String("modern-dark")    ? &kModernDark
-                      : id == QLatin1String("modern-light") ? &kModernLight
-                                                            : nullptr;
+    const bool known = id == QLatin1String("system") || id == QLatin1String("modern-dark")
+                       || id == QLatin1String("modern-light");
+    m_selected = known ? id : QStringLiteral("auto");
+    const QString look = known ? id : automaticLook();
+    const Colors *c = look == QLatin1String("modern-dark")    ? &kModernDark
+                      : look == QLatin1String("modern-light") ? &kModernLight
+                                                              : nullptr;
     if (!c) {
         qApp->setStyleSheet(QString());
         if (!m_origStyle.isEmpty() && QApplication::style()->name() != m_origStyle)
@@ -241,11 +406,18 @@ void Theme::apply(const QString &id)
             QApplication::setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
         QApplication::setPalette(buildPalette(*c));
         // Breeze's light icons vanish on a dark background (and vice versa).
-        if (iconThemeAvailable(QLatin1String(c->iconTheme)))
+        // Other desktops keep their icons; see Icons::fromTheme().
+        if (hasDesktopStyle() && iconThemeAvailable(QLatin1String(c->iconTheme)))
             QIcon::setThemeName(QLatin1String(c->iconTheme));
         qApp->setStyleSheet(buildQss(*c));
-        m_current = id;
+        m_current = look;
     }
+    for (QWidget *w : QApplication::allWidgets())
+        if (auto *box = qobject_cast<QDialogButtonBox *>(w))
+            updateDialogButtonIcons(box, isCustom());
+    qCDebug(lcTheme) << "theme" << m_selected << "shows" << m_current << "- desktop style" << m_origStyle
+                     << "colour scheme" << QGuiApplication::styleHints()->colorScheme() << "icons"
+                     << QIcon::themeName();
     Q_EMIT changed();
 }
 

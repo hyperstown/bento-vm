@@ -3,12 +3,15 @@
 
 // Checks the desktop integration of a build (e.g. the AppImage's bundled Qt):
 // prints the widget style, font, icon theme and colours Qt picked, and saves
-// screenshots of the main window and a file dialog.
-//   theme_shot <out-dir> <name-prefix>
+// screenshots of the main window, a file dialog and the settings.
+//   theme_shot <out-dir> <name-prefix> [theme id, default "auto"] [theme id to switch to before the dialog shots]
+#include "core/Vm.h"
 #include "core/VmLibrary.h"
 #include "display/GlibIntegration.h"
 #include "ui/MainWindow.h"
+#include "ui/SettingsDialog.h"
 #include "ui/Theme.h"
+#include "ui/VmCard.h"
 
 #include <QApplication>
 #include <QDir>
@@ -32,9 +35,11 @@ int main(int argc, char **argv)
 
     GlibIntegration::ensure();
     Theme::instance()->init();
-    Theme::instance()->apply(QStringLiteral("system"));
+    Theme::instance()->apply(argc > 3 ? QString::fromLocal8Bit(argv[3]) : QStringLiteral("auto"));
     VmLibrary::instance()->refresh();
 
+    std::printf("theme:       %s -> %s\n", qPrintable(Theme::instance()->selected()),
+                qPrintable(Theme::instance()->current()));
     std::printf("style:       %s\n", qPrintable(QApplication::style()->name()));
     std::printf("font:        %s\n", qPrintable(QApplication::font().toString()));
     std::printf("icon theme:  %s\n", qPrintable(QIcon::themeName()));
@@ -46,10 +51,16 @@ int main(int argc, char **argv)
     w.resize(1200, 760);
     w.show();
     QTimer::singleShot(2000, [&] {
+        if (const auto cards = w.findChildren<VmCard *>(); !cards.isEmpty())
+            std::printf("card:        %dx%d\n", cards.first()->width(), cards.first()->height());
+        std::fflush(stdout);
         w.grab().save(out + QLatin1Char('/') + prefix + QStringLiteral("-main.png"));
         auto *dlg = new QFileDialog(&w, QStringLiteral("Choose an installation image"), QDir::homePath());
         dlg->show();
+        (new SettingsDialog(&w))->show();
     });
+    if (argc > 4)
+        QTimer::singleShot(3500, [&] { Theme::instance()->apply(QString::fromLocal8Bit(argv[4])); });
     QTimer::singleShot(5000, [&] {
         int n = 0;
         for (QWidget *t : QApplication::topLevelWidgets()) {

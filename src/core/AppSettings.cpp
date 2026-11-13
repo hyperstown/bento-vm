@@ -15,6 +15,17 @@ AppSettings &AppSettings::instance()
 AppSettings::AppSettings()
     : m_s(Paths::configDir() + QStringLiteral("/bento-vm.conf"), QSettings::IniFormat)
 {
+    // 1.0.x kept the theme in ui/theme, where "system" was the default and got
+    // saved along with any change in Settings. Keep only a Modern choice, so
+    // everyone else gets the new automatic default.
+    const QString legacyTheme = QStringLiteral("ui/theme");
+    if (m_s.contains(legacyTheme)) {
+        const QString old = m_s.value(legacyTheme).toString();
+        if (old != QLatin1String("system"))
+            m_s.setValue(QStringLiteral("ui/appearance"), old);
+        m_s.remove(legacyTheme);
+        m_s.sync();
+    }
 }
 
 QVariant AppSettings::value(const QString &key, const QVariant &def) const
@@ -76,8 +87,8 @@ void AppSettings::setDefaultLocation(const QString &location)
     setValue(QStringLiteral("storage/default"), normalized(location));
 }
 
-QString AppSettings::theme() const { return m_s.value(QStringLiteral("ui/theme"), QStringLiteral("system")).toString(); }
-void AppSettings::setTheme(const QString &theme) { setValue(QStringLiteral("ui/theme"), theme); }
+QString AppSettings::theme() const { return m_s.value(QStringLiteral("ui/appearance"), QStringLiteral("auto")).toString(); }
+void AppSettings::setTheme(const QString &theme) { setValue(QStringLiteral("ui/appearance"), theme); }
 
 QString AppSettings::closeAction() const { return m_s.value(QStringLiteral("ui/closeAction"), QStringLiteral("ask")).toString(); }
 void AppSettings::setCloseAction(const QString &action) { setValue(QStringLiteral("ui/closeAction"), action); }

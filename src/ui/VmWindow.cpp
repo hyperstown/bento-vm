@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VmWindow.h"
+#include "Icons.h"
 #include "OsIcon.h"
 #include "Theme.h"
 #include "agent/VdAgent.h"
@@ -43,7 +44,7 @@ constexpr uint32_t kF[] = {0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x43,
 
 QPushButton *accentButton(const QString &text, const QIcon &icon, QWidget *parent)
 {
-    auto *b = new QPushButton(icon, text, parent);
+    auto *b = new QPushButton(Theme::onAccent(icon), text, parent);
     b->setProperty("accent", true);
     b->setDefault(true);
     b->setMinimumHeight(38);
@@ -167,7 +168,7 @@ void VmWindow::buildUi()
     m_toastProgress->setRange(0, 100);
     m_toastProgress->setFixedWidth(160);
     m_toastProgress->setTextVisible(false);
-    m_toastCancel = new QPushButton(QIcon::fromTheme(QStringLiteral("dialog-cancel")), QStringLiteral("Cancel"), m_toast);
+    m_toastCancel = new QPushButton(Icons::fromTheme(QStringLiteral("dialog-cancel")), QStringLiteral("Cancel"), m_toast);
     connect(m_toastCancel, &QPushButton::clicked, this, [this] {
         m_vm->agent()->cancelTransfers();
         m_toast->hide();
@@ -191,26 +192,26 @@ void VmWindow::buildToolbar()
     m_toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     m_toolbar->setIconSize(QSize(18, 18));
 
-    m_actStart = m_toolbar->addAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"));
+    m_actStart = m_toolbar->addAction(Icons::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"));
     connect(m_actStart, &QAction::triggered, this, &VmWindow::startVm);
 
     // Shut down with a drop-down for the harsher options.
     auto *powerMenu = new QMenu(this);
-    powerMenu->addAction(QIcon::fromTheme(QStringLiteral("system-reboot")), QStringLiteral("Reboot"), this, [this] { m_vm->reboot(); });
-    powerMenu->addAction(QIcon::fromTheme(QStringLiteral("process-stop")), QStringLiteral("Force Off"), this, [this] {
+    powerMenu->addAction(Icons::fromTheme(QStringLiteral("system-reboot")), QStringLiteral("Reboot"), this, [this] { m_vm->reboot(); });
+    powerMenu->addAction(Icons::fromTheme(QStringLiteral("process-stop")), QStringLiteral("Force Off"), this, [this] {
         if (QMessageBox::question(this, QStringLiteral("Force off?"),
                                   QStringLiteral("This is like pulling the power plug. Unsaved work in the VM will be lost."))
             == QMessageBox::Yes)
             m_vm->forceStop();
     });
-    m_actShutdown = new QAction(QIcon::fromTheme(QStringLiteral("system-shutdown")), QStringLiteral("Shut Down"), this);
+    m_actShutdown = new QAction(Icons::fromTheme(QStringLiteral("system-shutdown")), QStringLiteral("Shut Down"), this);
     m_actShutdown->setMenu(powerMenu);
     connect(m_actShutdown, &QAction::triggered, this, [this] { m_vm->shutdown(); });
     m_toolbar->addAction(m_actShutdown);
     if (auto *b = qobject_cast<QToolButton *>(m_toolbar->widgetForAction(m_actShutdown)))
         b->setPopupMode(QToolButton::MenuButtonPopup);
 
-    m_actPause = m_toolbar->addAction(QIcon::fromTheme(QStringLiteral("media-playback-pause")), QStringLiteral("Pause"));
+    m_actPause = m_toolbar->addAction(Icons::fromTheme(QStringLiteral("media-playback-pause")), QStringLiteral("Pause"));
     connect(m_actPause, &QAction::triggered, this, [this] {
         if (m_vm->state() == Vm::State::Paused)
             m_vm->resume();
@@ -228,7 +229,7 @@ void VmWindow::buildToolbar()
     keysMenu->addSeparator();
     for (int i = 0; i < 12; ++i)
         keysMenu->addAction(QStringLiteral("Ctrl+Alt+F%1").arg(i + 1), this, [this, i] { sendCombo({kCtrl, kAlt, kF[i]}); });
-    m_actKeys = new QAction(QIcon::fromTheme(QStringLiteral("input-keyboard")), QStringLiteral("Keys"), this);
+    m_actKeys = new QAction(Icons::fromTheme(QStringLiteral("input-keyboard")), QStringLiteral("Keys"), this);
     m_actKeys->setMenu(keysMenu);
     m_actKeys->setToolTip(QStringLiteral("Send key combinations the host would otherwise catch.\n"
                                          "Ctrl+Alt+F toggles full screen, Ctrl+Alt+G releases the keyboard."));
@@ -258,15 +259,15 @@ void VmWindow::buildToolbar()
             showToast(QStringLiteral("With the QEMU window display the clipboard is either both ways or off; "
                                      "the change applies after a restart."), 7000);
     });
-    m_actClipboard = new QAction(QIcon::fromTheme(QStringLiteral("edit-paste")), QStringLiteral("Clipboard"), this);
+    m_actClipboard = new QAction(Icons::fromTheme(QStringLiteral("edit-paste")), QStringLiteral("Clipboard"), this);
     m_actClipboard->setMenu(clipMenu);
     m_toolbar->addAction(m_actClipboard);
     m_clipButton = qobject_cast<QToolButton *>(m_toolbar->widgetForAction(m_actClipboard));
     if (m_clipButton)
         m_clipButton->setPopupMode(QToolButton::InstantPopup);
 
-    m_actSendFiles = m_toolbar->addAction(QIcon::fromTheme(QStringLiteral("document-send"),
-                                                           QIcon::fromTheme(QStringLiteral("document-open"))),
+    m_actSendFiles = m_toolbar->addAction(Icons::fromTheme(QStringLiteral("document-send"),
+                                                           Icons::fromTheme(QStringLiteral("document-open"))),
                                           QStringLiteral("Send Files…"));
     m_actSendFiles->setToolTip(QStringLiteral("Copy files into the VM. You can also drag & drop files onto the screen."));
     connect(m_actSendFiles, &QAction::triggered, this, [this] {
@@ -277,7 +278,7 @@ void VmWindow::buildToolbar()
     });
 
     // Removable media
-    m_actMedia = new QAction(QIcon::fromTheme(QStringLiteral("media-optical")), QStringLiteral("Media"), this);
+    m_actMedia = new QAction(Icons::fromTheme(QStringLiteral("media-optical")), QStringLiteral("Media"), this);
     m_actMedia->setMenu(new QMenu(this));
     m_toolbar->addAction(m_actMedia);
     m_mediaButton = qobject_cast<QToolButton *>(m_toolbar->widgetForAction(m_actMedia));
@@ -286,8 +287,8 @@ void VmWindow::buildToolbar()
     updateMediaMenu();
 
     // USB passthrough: the list is rebuilt every time the menu opens.
-    m_actUsb = new QAction(QIcon::fromTheme(QStringLiteral("drive-removable-media-usb"),
-                                            QIcon::fromTheme(QStringLiteral("drive-removable-media"))),
+    m_actUsb = new QAction(Icons::fromTheme(QStringLiteral("drive-removable-media-usb"),
+                                            Icons::fromTheme(QStringLiteral("drive-removable-media"))),
                            QStringLiteral("USB"), this);
     auto *usbMenu = new QMenu(this);
     usbMenu->setToolTipsVisible(true);
@@ -307,14 +308,14 @@ void VmWindow::buildToolbar()
     m_agentStatus->setContentsMargins(8, 0, 8, 0);
     m_toolbar->addWidget(m_agentStatus);
 
-    m_actScreenshot = m_toolbar->addAction(QIcon::fromTheme(QStringLiteral("camera-photo"),
-                                                            QIcon::fromTheme(QStringLiteral("image-x-generic"))),
+    m_actScreenshot = m_toolbar->addAction(Icons::fromTheme(QStringLiteral("camera-photo"),
+                                                            Icons::fromTheme(QStringLiteral("image-x-generic"))),
                                            QStringLiteral("Screenshot"));
     connect(m_actScreenshot, &QAction::triggered, this, &VmWindow::takeScreenshot);
-    m_actFullscreen = m_toolbar->addAction(QIcon::fromTheme(QStringLiteral("view-fullscreen")), QStringLiteral("Full Screen"));
+    m_actFullscreen = m_toolbar->addAction(Icons::fromTheme(QStringLiteral("view-fullscreen")), QStringLiteral("Full Screen"));
     m_actFullscreen->setToolTip(QStringLiteral("Full screen (Ctrl+Alt+F inside the VM)"));
     connect(m_actFullscreen, &QAction::triggered, this, &VmWindow::toggleFullscreen);
-    QAction *settings = m_toolbar->addAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings"));
+    QAction *settings = m_toolbar->addAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings"));
     connect(settings, &QAction::triggered, this, [this] { Q_EMIT settingsRequested(m_vm); });
 
     // Icon-only for the less important buttons keeps the bar compact.
@@ -344,10 +345,10 @@ QWidget *VmWindow::buildOffPage()
     m_offSpecs = centered(QString(), page, "mutedLabel");
     lay->addWidget(m_offSpecs);
     lay->addSpacing(16);
-    auto *start = accentButton(QStringLiteral("Start"), QIcon::fromTheme(QStringLiteral("media-playback-start")), page);
+    auto *start = accentButton(QStringLiteral("Start"), Icons::fromTheme(QStringLiteral("media-playback-start")), page);
     start->setMinimumWidth(180);
     connect(start, &QPushButton::clicked, this, &VmWindow::startVm);
-    auto *settings = new QPushButton(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings"), page);
+    auto *settings = new QPushButton(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings"), page);
     connect(settings, &QPushButton::clicked, this, [this] { Q_EMIT settingsRequested(m_vm); });
     auto *row = new QHBoxLayout;
     row->addStretch();
@@ -372,7 +373,7 @@ QWidget *VmWindow::buildWaitPage()
     m_waitTitle->setFont(f);
     m_waitDetail = centered(QString(), page, "mutedLabel");
     m_waitDetail->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_retryButton = new QPushButton(QIcon::fromTheme(QStringLiteral("view-refresh")), QStringLiteral("Try Again"), page);
+    m_retryButton = new QPushButton(Icons::fromTheme(QStringLiteral("view-refresh")), QStringLiteral("Try Again"), page);
     connect(m_retryButton, &QPushButton::clicked, this, [this] {
         m_displayRetries = 0;
         connectDisplay();
@@ -419,7 +420,7 @@ void VmWindow::updateState()
     m_actPause->setVisible(active);
     m_actPause->setEnabled(s == Vm::State::Running || s == Vm::State::Paused);
     m_actPause->setText(s == Vm::State::Paused ? QStringLiteral("Resume") : QStringLiteral("Pause"));
-    m_actPause->setIcon(QIcon::fromTheme(s == Vm::State::Paused ? QStringLiteral("media-playback-start")
+    m_actPause->setIcon(Icons::fromTheme(s == Vm::State::Paused ? QStringLiteral("media-playback-start")
                                                                 : QStringLiteral("media-playback-pause")));
     const bool live = embedded && s == Vm::State::Running;
     m_actKeys->setEnabled(live);
@@ -500,13 +501,13 @@ void VmWindow::updateMediaMenu()
                                                       : QStringLiteral("Inserted: %1").arg(QFileInfo(current).fileName()));
     info->setEnabled(false);
     menu->addSeparator();
-    menu->addAction(QIcon::fromTheme(QStringLiteral("document-open")), QStringLiteral("Insert ISO Image…"), this, [this] {
+    menu->addAction(Icons::fromTheme(QStringLiteral("document-open")), QStringLiteral("Insert ISO Image…"), this, [this] {
         const QString iso = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a disc image"), QDir::homePath(),
                                                          QStringLiteral("Disc images (*.iso *.img);;All files (*)"));
         if (!iso.isEmpty())
             m_vm->changeCdrom(0, iso);
     });
-    QAction *eject = menu->addAction(QIcon::fromTheme(QStringLiteral("media-eject")), QStringLiteral("Eject"), this,
+    QAction *eject = menu->addAction(Icons::fromTheme(QStringLiteral("media-eject")), QStringLiteral("Eject"), this,
                                      [this] { m_vm->changeCdrom(0, QString()); });
     eject->setEnabled(!current.isEmpty());
 }
@@ -779,7 +780,7 @@ void VmWindow::rebuildUsbMenu()
     if (devices.isEmpty() && m_vm->usbAttachments().isEmpty())
         menu->addAction(QStringLiteral("No USB devices found"))->setEnabled(false);
     menu->addSeparator();
-    menu->addAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Connect Automatically at Startup…"), this,
+    menu->addAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Connect Automatically at Startup…"), this,
                     [this] { Q_EMIT settingsRequested(m_vm, QStringLiteral("usb")); });
 }
 
@@ -830,7 +831,7 @@ void VmWindow::connectUsb(const UsbDevice &d)
                                .arg(d.usbId(), Usb::rulesFile()));
     QPushButton *once = ask.addButton(QStringLiteral("Allow This Time"), QMessageBox::AcceptRole);
     QPushButton *always = ask.addButton(QStringLiteral("Always Allow"), QMessageBox::AcceptRole);
-    once->setIcon(QIcon::fromTheme(QStringLiteral("dialog-password")));
+    once->setIcon(Icons::fromTheme(QStringLiteral("dialog-password")));
     ask.setDefaultButton(once);
     ask.exec();
     if (ask.clickedButton() == once) {

@@ -21,7 +21,7 @@
       <li>USB passthrough for game controllers, drives and more</li>
       <li>A setup wizard that detects the OS from the ISO and recommends CPU and memory</li>
       <li>Several storage locations; VMs on a disconnected drive show as temporarily unavailable</li>
-      <li>Native KDE look, or the built-in Modern Dark and Modern Light themes</li>
+      <li>Native look on KDE Plasma and a built-in Modern theme, light or dark, on other desktops</li>
     </ul>
   </description>
   <launchable type="desktop-id">io.github.hyperstown.BentoVM.desktop</launchable>
@@ -53,7 +53,13 @@
   <releases>
     <release version="1.0.2" date="2026-11-13">
       <description>
-        <p>The AppImage now has its native KDE look on Fedora and other distributions too, not only on Arch and Ubuntu.</p>
+        <p>BentoVM now looks right on every distribution and desktop:</p>
+        <ul>
+          <li>On KDE Plasma it has the native look, now on Fedora too.</li>
+          <li>On GNOME and other desktops without a Qt style it uses its Modern theme, following your light or dark preference.</li>
+          <li>Icons come from your icon theme, including GNOME's symbolic icons.</li>
+          <li>VM cards adapt to larger fonts.</li>
+        </ul>
       </description>
     </release>
     <release version="1.0.1" date="2026-11-13">
