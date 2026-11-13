@@ -9,6 +9,7 @@ class QAction;
 class QActionGroup;
 class QFrame;
 class QLabel;
+class QProcess;
 class QProgressBar;
 class QPushButton;
 class QStackedWidget;
@@ -59,7 +60,8 @@ private:
     void rebuildUsbMenu();
     void updateUsbButton();
     void connectUsb(const UsbDevice &d);
-    void attachUsbNow(const UsbDevice &d);
+    void attachUsbNow(const UsbDevice &d, QProcess *accessHolder = nullptr);
+    void requestOneTimeUsbAccess(const UsbDevice &d);
     void disconnectUsb(const QString &qdevId, const QString &name, bool autoConnect);
 
     QPointer<Vm> m_vm;

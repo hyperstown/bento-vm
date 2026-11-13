@@ -739,7 +739,9 @@ void VmWindow::rebuildUsbMenu()
             a->setEnabled(false);
             a->setText(a->text() + QStringLiteral(" — used by %1").arg(owner->name()));
         } else if (!att && !d.accessible()) {
-            a->setToolTip(QStringLiteral("Needs a one-time permission (administrator password)."));
+            a->setToolTip(Usb::aclHelperPath().isEmpty()
+                              ? QStringLiteral("Asks for your administrator password to allow access.")
+                              : QStringLiteral("Access is granted only while it's connected to the VM."));
         }
         if (att) {
             const QString id = att->qdevId;
@@ -808,18 +810,31 @@ void VmWindow::connectUsb(const UsbDevice &d)
         return;
     }
 
-    // USB device nodes are root-only by default; QEMU runs as us.
+    // USB device nodes are root-only by default and QEMU runs as us.
+    // Preferred: one-time access through spice-gtk's ACL helper (no password
+    // on the active session, revoked when the device is handed back).
+    if (!Usb::aclHelperPath().isEmpty()) {
+        requestOneTimeUsbAccess(d);
+        return;
+    }
+
     QMessageBox ask(QMessageBox::Question, QStringLiteral("Allow access to %1?").arg(name),
-                    QStringLiteral("Bento runs VMs as your user, and USB devices are only accessible to root by default.\n\n"
-                                   "Bento can add a rule that lets you use this device (%1) from now on. "
-                                   "You'll be asked for your administrator password once.").arg(d.usbId()),
+                    QStringLiteral("Bento runs VMs as your user, and USB devices are only accessible to root by default. "
+                                   "Allowing access asks for your administrator password."),
                     QMessageBox::Cancel, this);
-    ask.setInformativeText(QStringLiteral("The rule is stored in %1.").arg(Usb::rulesFile()));
-    QPushButton *allow = ask.addButton(QStringLiteral("Allow…"), QMessageBox::AcceptRole);
-    allow->setIcon(QIcon::fromTheme(QStringLiteral("dialog-password")));
-    ask.setDefaultButton(allow);
+    ask.setInformativeText(QStringLiteral("<b>This time</b>: until the device is unplugged or the computer restarts.<br>"
+                                          "<b>Always</b>: adds a rule for this device (%1) to %2, so you won't be asked again.")
+                               .arg(d.usbId(), Usb::rulesFile()));
+    QPushButton *once = ask.addButton(QStringLiteral("Allow This Time"), QMessageBox::AcceptRole);
+    QPushButton *always = ask.addButton(QStringLiteral("Always Allow"), QMessageBox::AcceptRole);
+    once->setIcon(QIcon::fromTheme(QStringLiteral("dialog-password")));
+    ask.setDefaultButton(once);
     ask.exec();
-    if (ask.clickedButton() != allow)
+    if (ask.clickedButton() == once) {
+        requestOneTimeUsbAccess(d);
+        return;
+    }
+    if (ask.clickedButton() != always)
         return;
 
     showToast(QStringLiteral("Waiting for authorization…"), 0);
@@ -856,7 +871,22 @@ void VmWindow::connectUsb(const UsbDevice &d)
     });
 }
 
-void VmWindow::attachUsbNow(const UsbDevice &d)
+void VmWindow::requestOneTimeUsbAccess(const UsbDevice &d)
+{
+    Usb::requestTemporaryAccess(d, this, [this, d](bool ok, const QString &err, QProcess *holder) {
+        if (!ok) {
+            QMessageBox::warning(this, QStringLiteral("Couldn't access %1").arg(d.displayName()), err);
+            return;
+        }
+        if (!m_vm || !m_vm->isActive()) {
+            Usb::releaseTemporaryAccess(holder);
+            return;
+        }
+        attachUsbNow(d, holder);
+    });
+}
+
+void VmWindow::attachUsbNow(const UsbDevice &d, QProcess *accessHolder)
 {
     const QString name = d.displayName();
     m_vm->attachUsb(d, [this, name, d](const QString &err) {
@@ -884,7 +914,7 @@ void VmWindow::attachUsbNow(const UsbDevice &d)
                                      showToast(QStringLiteral("%1 is now connected to the VM.").arg(name), 4000);
                                  });
         });
-    });
+    }, accessHolder);
 }
 
 void VmWindow::disconnectUsb(const QString &qdevId, const QString &name, bool autoConnect)

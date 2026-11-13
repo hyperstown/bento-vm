@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QTimer>
 
 #include <unistd.h>
@@ -198,6 +199,86 @@ QIcon iconFor(UsbDevice::Kind kind)
     case UsbDevice::Kind::Wireless: return icon("network-bluetooth", "network-wireless");
     default: return icon("drive-removable-media-usb", "drive-removable-media");
     }
+}
+
+QString aclHelperPath()
+{
+    for (const char *p : {"/usr/libexec/spice-client-glib-usb-acl-helper", "/usr/lib/spice-client-glib-usb-acl-helper",
+                          "/usr/lib64/spice-client-glib-usb-acl-helper", "/usr/lib/spice-gtk/spice-client-glib-usb-acl-helper"}) {
+        const QString path = QString::fromLatin1(p);
+        if (QFileInfo(path).isExecutable())
+            return path;
+    }
+    return {};
+}
+
+void requestTemporaryAccess(const UsbDevice &device, QObject *context,
+                            std::function<void(bool, const QString &, QProcess *)> done)
+{
+    const QString helper = aclHelperPath();
+    if (!helper.isEmpty()) {
+        // Protocol: write "<bus> <dev>\n", read "SUCCESS" or an error line.
+        // The ACL stays while the helper runs; closing its stdin removes it.
+        auto *p = new QProcess(context);
+        auto finished = std::make_shared<bool>(false);
+        QObject::connect(p, &QProcess::readyReadStandardOutput, context, [p, done, finished] {
+            if (*finished || !p->canReadLine())
+                return;
+            *finished = true;
+            const QString line = QString::fromUtf8(p->readLine()).trimmed();
+            if (line == QLatin1String("SUCCESS")) {
+                done(true, QString(), p);
+            } else {
+                releaseTemporaryAccess(p);
+                done(false, line.isEmpty() ? QStringLiteral("Access was denied.") : line, nullptr);
+            }
+        });
+        QObject::connect(p, &QProcess::finished, context, [p, done, finished](int, QProcess::ExitStatus) {
+            if (!*finished) {
+                *finished = true;
+                const QString err = QString::fromLocal8Bit(p->readAllStandardError() + p->readAllStandardOutput()).trimmed();
+                done(false, err.isEmpty() ? QStringLiteral("Access was denied.") : err, nullptr);
+            }
+            p->deleteLater();
+        });
+        p->start(helper, QStringList());
+        p->write(QStringLiteral("%1 %2\n").arg(device.bus).arg(device.address).toLatin1());
+        return;
+    }
+
+    // Fallback: a plain ACL entry for us on this device node (asks for the
+    // administrator password). It disappears with the node.
+    static const QRegularExpression nodeRe(QStringLiteral(R"(^/dev/bus/usb/\d{3}/\d{3}$)"));
+    const QString setfacl = QStandardPaths::findExecutable(QStringLiteral("setfacl"));
+    if (setfacl.isEmpty() || !nodeRe.match(device.node()).hasMatch()) {
+        done(false, QStringLiteral("setfacl is not available; use “Always Allow” instead."), nullptr);
+        return;
+    }
+    auto *p = new QProcess(context);
+    QObject::connect(p, &QProcess::finished, context, [p, done](int code, QProcess::ExitStatus st) {
+        p->deleteLater();
+        if (st == QProcess::NormalExit && code == 0)
+            done(true, QString(), nullptr);
+        else if (code == 126 || code == 127)
+            done(false, QStringLiteral("Authorization was cancelled or denied."), nullptr);
+        else
+            done(false, QString::fromLocal8Bit(p->readAllStandardError()).trimmed(), nullptr);
+    });
+    p->start(QStringLiteral("pkexec"), {setfacl, QStringLiteral("-m"), QStringLiteral("u:%1:rw").arg(::getuid()), device.node()});
+}
+
+void releaseTemporaryAccess(QProcess *holder)
+{
+    if (!holder)
+        return;
+    holder->disconnect();
+    if (holder->state() == QProcess::NotRunning) {
+        holder->deleteLater();
+        return;
+    }
+    QObject::connect(holder, &QProcess::finished, holder, &QObject::deleteLater);
+    holder->closeWriteChannel();   // the helper removes the ACL and exits
+    QTimer::singleShot(3000, holder, [holder] { holder->kill(); });
 }
 
 QString rulesFile()

@@ -51,6 +51,7 @@ so on LTS distributions it may not be available yet.
 | OVMF (edk2) | – | For UEFI guests (BIOS guests work without it) |
 | libosinfo | optional | Better ISO detection (`osinfo-detect`) |
 | swtpm | optional | TPM 2.0, e.g. for Windows 11 |
+| spice-gtk | optional | Password-less, one-time USB access (its ACL helper) |
 
 Your user needs read/write access to `/dev/kvm` (usually via the `kvm` group).
 
@@ -104,7 +105,7 @@ spice-protocol 0.14+. For example, on Arch Linux:
 ```sh
 sudo pacman -S --needed cmake ninja qt6-base glib2 libglvnd spice-protocol \
                         qemu-desktop virglrenderer edk2-ovmf
-# optional: libosinfo swtpm
+# optional: libosinfo swtpm spice-gtk
 ```
 
 Other distributions have equivalent packages (usually the `-devel` / `-dev`
@@ -149,9 +150,18 @@ Devices in *Settings → USB* are connected automatically whenever the VM starts
 and whenever they're plugged in while it runs.
 
 USB device nodes are only accessible to root by default, and Bento doesn't run
-QEMU as root. The first time you pass a device through, Bento offers to add a
-udev rule giving the logged-in user access to that device (by vendor:product
-ID). This asks for your administrator password once. The rules live in
+QEMU as root. When you connect a device from the *USB* menu, Bento gets
+one-time access to it:
+
+- If spice-gtk's ACL helper is installed (spice-gtk comes with virt-viewer,
+  virt-manager and GNOME Boxes), access is granted without a password and
+  revoked as soon as you hand the device back or the VM stops.
+- Otherwise Bento asks for your administrator password. You can choose
+  *Allow This Time* (until the device is unplugged or the computer restarts) or
+  *Always Allow* (a udev rule for that vendor:product ID).
+
+Devices that connect automatically (*Settings → USB*) need the permanent rule,
+since QEMU opens them on its own; use *Allow Access…* there. Rules live in
 `/etc/udev/rules.d/70-bento-usb.rules`; delete a line (or the file) to revoke
 access.
 

@@ -343,6 +343,7 @@ void Vm::cleanupRuntime()
         m_usb.clear();
         Q_EMIT usbChanged();
     }
+    releaseUnusedUsbAccess();
 }
 
 QString Vm::logTail(int maxLines) const
@@ -446,6 +447,22 @@ bool UsbAttachment::matches(const UsbDevice &d) const
     return vendorId == d.vendorId && productId == d.productId;
 }
 
+void Vm::releaseUnusedUsbAccess()
+{
+    // Devices handed back to the host (or a stopped VM) lose their temporary access.
+    for (auto it = m_usbAccess.begin(); it != m_usbAccess.end();) {
+        bool attached = false;
+        for (const UsbAttachment &a : std::as_const(m_usb))
+            attached |= a.qdevId == it.key();
+        if (attached) {
+            ++it;
+        } else {
+            Usb::releaseTemporaryAccess(it.value());
+            it = m_usbAccess.erase(it);
+        }
+    }
+}
+
 const UsbAttachment *Vm::usbAttachmentFor(const UsbDevice &d) const
 {
     for (const UsbAttachment &a : m_usb)
@@ -454,9 +471,10 @@ const UsbAttachment *Vm::usbAttachmentFor(const UsbDevice &d) const
     return nullptr;
 }
 
-void Vm::attachUsb(const UsbDevice &d, std::function<void(const QString &)> done)
+void Vm::attachUsb(const UsbDevice &d, std::function<void(const QString &)> done, QProcess *accessHolder)
 {
     if (!m_qmp->isReady()) {
+        Usb::releaseTemporaryAccess(accessHolder);
         if (done)
             done(QStringLiteral("The VM isn't running."));
         return;
@@ -471,7 +489,16 @@ void Vm::attachUsb(const UsbDevice &d, std::function<void(const QString &)> done
                     {QStringLiteral("bus"), QStringLiteral("xhci.0")},
                     {QStringLiteral("hostbus"), d.bus},
                     {QStringLiteral("hostport"), d.port}},
-                   [this, done](const QJsonValue &, const QString &err) {
+                   [this, done, id, accessHolder](const QJsonValue &, const QString &err) {
+                       if (accessHolder) {
+                           if (err.isEmpty()) {
+                               Usb::releaseTemporaryAccess(m_usbAccess.take(id));
+                               accessHolder->setParent(this);
+                               m_usbAccess.insert(id, accessHolder);
+                           } else {
+                               Usb::releaseTemporaryAccess(accessHolder);
+                           }
+                       }
                        refreshUsb();
                        if (done)
                            done(err);
@@ -512,6 +539,7 @@ void Vm::refreshUsb()
         auto pending = std::make_shared<int>(int(ids.size()) * 4);
         if (ids.isEmpty()) {
             m_usb.clear();
+            releaseUnusedUsbAccess();
             Q_EMIT usbChanged();
             return;
         }
@@ -537,6 +565,7 @@ void Vm::refreshUsb()
                                        a.productId = hex(v);
                                    if (--*pending == 0) {
                                        m_usb = result->values();
+                                       releaseUnusedUsbAccess();
                                        Q_EMIT usbChanged();
                                    }
                                });

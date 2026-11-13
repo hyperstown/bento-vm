@@ -10,6 +10,8 @@
 #include "display/GlibIntegration.h"
 
 #include <QApplication>
+#include <QFileInfo>
+#include <QProcess>
 #include <QJsonObject>
 #include <QTimer>
 
@@ -36,6 +38,69 @@ int main(int argc, char **argv)
                     qPrintable(d.mountPoints().join(QLatin1Char(','))));
     if (mode == "list")
         return 0;
+
+    if (mode == "passthrough") {
+        // Real passthrough with one-time access: grant, attach, verify QEMU
+        // opened it, hand it back, verify access and host driver are restored.
+        GlibIntegration::ensure();
+        VmLibrary::instance()->refresh();
+        Vm *vm = VmLibrary::instance()->findByName(QString::fromLocal8Bit(argv[2]));
+        const QString usbId = QString::fromLocal8Bit(argv[3]);
+        UsbDevice dev;
+        for (const UsbDevice &d : devs)
+            if (d.usbId() == usbId)
+                dev = d;
+        if (!vm || dev.bus == 0)
+            return 2;
+        const QString driverLink = QStringLiteral("/sys/bus/usb/devices/%1:1.0/driver").arg(dev.sysName);
+        auto hostDriver = [&] { return QFileInfo(driverLink).symLinkTarget().section(QLatin1Char('/'), -1); };
+        std::printf("host driver before: %s, access before: %s\n", qPrintable(hostDriver()), dev.accessible() ? "rw" : "no");
+        QString err;
+        if (!vm->start(&err))
+            return 1;
+        int failures = 0;
+        auto check = [&](const char *what, bool ok) {
+            std::printf("%s  %s\n", ok ? "PASS" : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        QObject::connect(vm, &Vm::qmpReady, [&] {
+            Usb::requestTemporaryAccess(dev, &app, [&](bool ok, const QString &e, QProcess *holder) {
+                check("one-time access granted without a prompt", ok && holder);
+                check("device node now accessible", dev.accessible());
+                if (!ok)
+                    return vm->forceStop();
+                vm->attachUsb(dev, [&](const QString &e2) {
+                    check("device_add", e2.isEmpty());
+                    QTimer::singleShot(1500, [&] {
+                        std::printf("host driver while attached: '%s'\n", qPrintable(hostDriver()));
+                        vm->qmp()->execute(QStringLiteral("human-monitor-command"),
+                                           {{QStringLiteral("command-line"), QStringLiteral("info usb")}},
+                                           [&](const QJsonValue &r, const QString &) {
+                            const QString info = r.toString();
+                            std::printf("guest 'info usb':\n%s", qPrintable(info));
+                            check("QEMU opened the real device", info.contains(QLatin1String("ID: usb-h"))
+                                                                    && !info.contains(QLatin1String("Product USB Host Device")));
+                            const UsbAttachment *a = vm->usbAttachmentFor(dev);
+                            vm->detachUsb(a ? a->qdevId : QString(), [&](const QString &) {
+                                QTimer::singleShot(1500, [&] {
+                                    check("access revoked after handing it back", !dev.accessible());
+                                    check("host driver re-bound", !hostDriver().isEmpty());
+                                    std::printf("host driver after: %s\n", qPrintable(hostDriver()));
+                                    vm->forceStop();
+                                });
+                            });
+                        });
+                    });
+                }, holder);
+            });
+        });
+        QObject::connect(vm, &Vm::stateChanged, [&](Vm::State s) {
+            if (s == Vm::State::Stopped)
+                app.exit(failures ? 1 : 0);
+        });
+        QTimer::singleShot(40000, &app, [&] { vm->forceStop(); app.exit(1); });
+        return app.exec();
+    }
 
     GlibIntegration::ensure();
     VmLibrary::instance()->refresh();

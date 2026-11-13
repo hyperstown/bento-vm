@@ -8,6 +8,7 @@
 #include <functional>
 
 class QObject;
+class QProcess;
 
 // A USB device plugged into the host, read from sysfs.
 struct UsbDevice
@@ -48,5 +49,17 @@ void grantAccess(const QString &vendorId, const QString &productId, QObject *con
                  std::function<void(bool ok, const QString &error)> done);
 
 QString rulesFile();
+
+// One-time access to a device, without a persistent rule.
+//  * With spice-gtk's ACL helper (polkit "org.spice-space.lowlevelusbaccess",
+//    no password for the active session) `holder` is a running helper process:
+//    access lasts until it is released (see releaseTemporaryAccess).
+//  * Otherwise falls back to `pkexec setfacl` (administrator password); access
+//    then lasts until the device is unplugged or the host reboots, and
+//    `holder` is null.
+QString aclHelperPath();
+void requestTemporaryAccess(const UsbDevice &device, QObject *context,
+                            std::function<void(bool ok, const QString &error, QProcess *holder)> done);
+void releaseTemporaryAccess(QProcess *holder);
 
 } // namespace Usb

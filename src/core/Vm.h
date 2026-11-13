@@ -3,11 +3,14 @@
 #include "VmConfig.h"
 
 #include <QDateTime>
+#include <QHash>
+#include <QPointer>
 #include <QImage>
 #include <QObject>
 
 #include <functional>
 
+class QProcess;
 class QmpClient;
 struct UsbDevice;
 
@@ -67,7 +70,9 @@ public:
     // Host USB passthrough while running.
     const QList<UsbAttachment> &usbAttachments() const { return m_usb; }
     const UsbAttachment *usbAttachmentFor(const UsbDevice &d) const;
-    void attachUsb(const UsbDevice &d, std::function<void(const QString &error)> done = {});
+    // `accessHolder` (optional) keeps temporary device access alive while attached.
+    void attachUsb(const UsbDevice &d, std::function<void(const QString &error)> done = {},
+                   QProcess *accessHolder = nullptr);
     void detachUsb(const QString &qdevId, std::function<void(const QString &error)> done = {});
     void refreshUsb();
 
@@ -118,4 +123,6 @@ private:
     QStringList m_warnings;
     QImage m_thumbnail;
     QList<UsbAttachment> m_usb;
+    QHash<QString, QPointer<QProcess>> m_usbAccess;   // qdev id -> ACL helper
+    void releaseUnusedUsbAccess();
 };
