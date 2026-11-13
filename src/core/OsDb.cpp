@@ -1,4 +1,5 @@
 #include "OsDb.h"
+#include "Paths.h"
 #include "HostInfo.h"
 
 #include <QFile>
@@ -299,6 +300,7 @@ Detection detect(const QString &isoPath)
     const QString osinfo = QStandardPaths::findExecutable(QStringLiteral("osinfo-detect"));
     if (!osinfo.isEmpty()) {
         QProcess p;
+        p.setProcessEnvironment(Paths::hostEnvironment());
         p.start(osinfo, {isoPath});
         if (p.waitForFinished(20000)) {
             const QString out = QString::fromUtf8(p.readAllStandardOutput());

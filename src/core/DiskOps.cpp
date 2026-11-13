@@ -1,4 +1,5 @@
 #include "DiskOps.h"
+#include "Paths.h"
 #include "HostInfo.h"
 
 #include <QFile>
@@ -22,6 +23,7 @@ ImageInfo imageInfo(const QString &path)
 {
     ImageInfo info;
     QProcess p;
+    p.setProcessEnvironment(Paths::hostEnvironment());
     // -U: don't take the image lock, so this also works while a VM uses it.
     p.start(qemuImg(), {QStringLiteral("info"), QStringLiteral("-U"), QStringLiteral("--output=json"), path});
     if (!p.waitForFinished(15000) || p.exitCode() != 0) {
@@ -41,6 +43,7 @@ ImageInfo imageInfo(const QString &path)
 bool createDisk(const QString &path, int sizeGiB, QString *error)
 {
     QProcess p;
+    p.setProcessEnvironment(Paths::hostEnvironment());
     p.start(qemuImg(), {QStringLiteral("create"), QStringLiteral("-q"), QStringLiteral("-f"), QStringLiteral("qcow2"),
                         QStringLiteral("-o"), QStringLiteral("lazy_refcounts=on,preallocation=metadata"),
                         path, QStringLiteral("%1G").arg(sizeGiB)});
@@ -89,6 +92,7 @@ void DiskCopyJob::start()
 {
     m_total = qMax<qint64>(1, allocatedBytes(m_src));
     m_proc = new QProcess(this);
+    m_proc->setProcessEnvironment(Paths::hostEnvironment());
     m_timer = new QTimer(this);
     m_timer->setInterval(250);
     connect(m_timer, &QTimer::timeout, this, [this] {

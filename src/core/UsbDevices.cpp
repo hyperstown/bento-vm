@@ -1,4 +1,5 @@
 #include "UsbDevices.h"
+#include "Paths.h"
 
 #include <QDir>
 #include <QFile>
@@ -220,6 +221,7 @@ void requestTemporaryAccess(const UsbDevice &device, QObject *context,
         // Protocol: write "<bus> <dev>\n", read "SUCCESS" or an error line.
         // The ACL stays while the helper runs; closing its stdin removes it.
         auto *p = new QProcess(context);
+        p->setProcessEnvironment(Paths::hostEnvironment());
         auto finished = std::make_shared<bool>(false);
         QObject::connect(p, &QProcess::readyReadStandardOutput, context, [p, done, finished] {
             if (*finished || !p->canReadLine())
@@ -255,6 +257,7 @@ void requestTemporaryAccess(const UsbDevice &device, QObject *context,
         return;
     }
     auto *p = new QProcess(context);
+    p->setProcessEnvironment(Paths::hostEnvironment());
     QObject::connect(p, &QProcess::finished, context, [p, done](int code, QProcess::ExitStatus st) {
         p->deleteLater();
         if (st == QProcess::NormalExit && code == 0)
@@ -301,13 +304,15 @@ void grantAccess(const QString &vendorId, const QString &productId, QObject *con
                              .arg(vendorId, productId);
     const QString script = QStringLiteral(
         "set -e; f=\"$1\"; "
-        "[ -f \"$f\" ] || printf '%s\\n' '# Managed by Bento: USB devices the logged-in user may pass through to VMs.' > \"$f\"; "
+        "[ -f \"$f\" ] || printf '%s\\n' '# Managed by BentoVM: USB devices the logged-in user may pass through to VMs.' > \"$f\"; "
         "grep -qxF \"$2\" \"$f\" || printf '%s\\n' \"$2\" >> \"$f\"; "
         "udevadm control --reload-rules; "
         "udevadm trigger --action=change --subsystem-match=usb --attr-match=idVendor=\"$3\" --attr-match=idProduct=\"$4\"; "
         "udevadm settle -t 5 || true");
 
     auto *p = new QProcess(context);
+
+    p->setProcessEnvironment(Paths::hostEnvironment());
     QObject::connect(p, &QProcess::finished, context, [p, vendorId, productId, done](int code, QProcess::ExitStatus st) {
         p->deleteLater();
         if (st != QProcess::NormalExit || code != 0) {

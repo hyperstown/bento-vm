@@ -819,7 +819,7 @@ void VmWindow::connectUsb(const UsbDevice &d)
     }
 
     QMessageBox ask(QMessageBox::Question, QStringLiteral("Allow access to %1?").arg(name),
-                    QStringLiteral("Bento runs VMs as your user, and USB devices are only accessible to root by default. "
+                    QStringLiteral("BentoVM runs VMs as your user, and USB devices are only accessible to root by default. "
                                    "Allowing access asks for your administrator password."),
                     QMessageBox::Cancel, this);
     ask.setInformativeText(QStringLiteral("<b>This time</b>: until the device is unplugged or the computer restarts.<br>"

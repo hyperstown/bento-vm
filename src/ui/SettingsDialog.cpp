@@ -87,7 +87,7 @@ void select(QComboBox *box, const QVariant &data)
 SettingsDialog::SettingsDialog(QWidget *parent)
     : PageDialog(parent)
 {
-    setWindowTitle(QStringLiteral("Configure Bento"));
+    setWindowTitle(QStringLiteral("Configure BentoVM"));
     m_originalTheme = Theme::instance()->current();
     buildAppearance();
     buildStorage();
@@ -112,7 +112,7 @@ void SettingsDialog::showStoragePage()
 void SettingsDialog::buildAppearance()
 {
     QVBoxLayout *page = addPage(QStringLiteral("Appearance"), QIcon::fromTheme(QStringLiteral("preferences-desktop-theme")),
-                                QStringLiteral("Bento looks like a regular KDE application by default. The Modern themes give "
+                                QStringLiteral("BentoVM looks like a regular KDE application by default. The Modern themes give "
                                                "it a self-contained look with rounded cards and a green accent."));
     m_themeGroup = new QButtonGroup(this);
     for (const Theme::Info &t : Theme::available()) {
@@ -144,7 +144,7 @@ void SettingsDialog::buildStorage()
 {
     m_storagePage = m_nav->count();
     QVBoxLayout *page = addPage(QStringLiteral("Storage"), QIcon::fromTheme(QStringLiteral("drive-harddisk")),
-                                QStringLiteral("Folders where Bento keeps virtual machines. New VMs go to the default "
+                                QStringLiteral("Folders where BentoVM keeps virtual machines. New VMs go to the default "
                                                "location. Locations on external drives are fine: their VMs show as "
                                                "“temporarily unavailable” while the drive is disconnected."));
     const AppSettings &s = AppSettings::instance();
@@ -170,7 +170,7 @@ void SettingsDialog::buildStorage()
     row->addStretch();
     row->addWidget(open);
     page->addLayout(row);
-    page->addWidget(PageDialog::hint(QStringLiteral("Removing a location only stops Bento from looking there; no files are deleted."), this));
+    page->addWidget(PageDialog::hint(QStringLiteral("Removing a location only stops BentoVM from looking there; no files are deleted."), this));
 
     connect(add, &QPushButton::clicked, this, [this] {
         const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Choose a folder for virtual machines"),
@@ -274,14 +274,14 @@ void SettingsDialog::buildBehaviour()
     form->addRow(QStringLiteral("When closing a running VM's window:"), m_closeAction);
     page->addLayout(form);
     page->addWidget(PageDialog::hint(QStringLiteral(
-        "VMs run as independent QEMU processes, so they keep running if Bento is closed or crashes. "
-        "Bento reconnects to them the next time it starts."), this));
+        "VMs run as independent QEMU processes, so they keep running if BentoVM is closed or crashes. "
+        "BentoVM reconnects to them the next time it starts."), this));
 }
 
 void SettingsDialog::buildQemu()
 {
     QVBoxLayout *page = addPage(QStringLiteral("QEMU"), QIcon::fromTheme(QStringLiteral("utilities-terminal")),
-                                QStringLiteral("What Bento found on this system."));
+                                QStringLiteral("What BentoVM found on this system."));
     const HostInfo &h = HostInfo::get();
     auto *form = makeForm();
     m_qemuBinary = new QLineEdit(AppSettings::instance().qemuBinary(), this);
@@ -308,6 +308,7 @@ void SettingsDialog::buildQemu()
             .arg(ok ? QStringLiteral("#22c55e") : QStringLiteral("#ef4444"), text.toHtmlEscaped());
     };
     QProcess p;
+    p.setProcessEnvironment(Paths::hostEnvironment());
     p.start(HostInfo::qemuBinary(), {QStringLiteral("--version")});
     p.waitForFinished(3000);
     const QString version = QString::fromLocal8Bit(p.readAllStandardOutput()).section(QLatin1Char('\n'), 0, 0);

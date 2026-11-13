@@ -64,10 +64,11 @@ int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("bento-vm"));
-    QApplication::setApplicationDisplayName(QStringLiteral("Bento"));
+    QApplication::setApplicationDisplayName(QStringLiteral("BentoVM"));
     QApplication::setApplicationVersion(QStringLiteral(BENTO_VERSION));
-    QApplication::setDesktopFileName(QStringLiteral("bento-vm"));
-    QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("bento-vm"), QIcon(QStringLiteral(":/icons/bento-vm.svg"))));
+    QApplication::setDesktopFileName(QStringLiteral("io.github.hyperstown.BentoVM"));
+    QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("io.github.hyperstown.BentoVM"),
+                                                 QIcon(QStringLiteral(":/icons/bento-vm.svg"))));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("QEMU/KVM virtual machines with Venus GPU acceleration"));

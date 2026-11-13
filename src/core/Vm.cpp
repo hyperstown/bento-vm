@@ -140,6 +140,7 @@ bool Vm::startSwtpm(QString *error)
     const QString state = QemuRuntime::tpmStateDir(m_cfg.dir);
     Paths::ensureDir(state, true);
     QProcess p;
+    p.setProcessEnvironment(Paths::hostEnvironment());
     p.setProgram(host.swtpm);
     p.setArguments({QStringLiteral("socket"), QStringLiteral("--tpm2"),
                     QStringLiteral("--tpmstate"), QStringLiteral("dir=%1").arg(state),
@@ -222,6 +223,8 @@ bool Vm::start(QString *error)
     }
 
     QProcess p;
+
+    p.setProcessEnvironment(Paths::hostEnvironment());
     p.setProgram(cmd.program);
     p.setArguments(cmd.args);
     p.setWorkingDirectory(m_cfg.dir);

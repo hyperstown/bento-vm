@@ -625,7 +625,7 @@ bool NewVmWizard::validatePage(int page)
             return fail(QStringLiteral("File not found"), QStringLiteral("“%1” doesn't exist.").arg(p));
         if (::access(QFile::encodeName(p).constData(), R_OK) != 0)
             return fail(QStringLiteral("No permission"),
-                        QStringLiteral("You can't read “%1”. Bento runs VMs as your user, without root.\n\n"
+                        QStringLiteral("You can't read “%1”. BentoVM runs VMs as your user, without root.\n\n"
                                        "Fix it with:\n  sudo chown $USER: '%1'").arg(p));
         if (!isoMode() && m_diskInPlace->isChecked() && ::access(QFile::encodeName(p).constData(), W_OK) != 0)
             return fail(QStringLiteral("Disk is read-only for you"),
@@ -736,7 +736,7 @@ void NewVmWizard::startDetection()
         m_detectTitle->setText(QStringLiteral("Which system is installed on this disk?"));
         m_detectDetail->setText(m_detection.recognized
                                     ? QStringLiteral("Guessed from the file name. Change it below if that's wrong.")
-                                    : QStringLiteral("Pick the operating system below so Bento can choose matching settings."));
+                                    : QStringLiteral("Pick the operating system below so BentoVM can choose matching settings."));
         Combos::select(m_os, m_detection.profileId);
         Q_EMIT m_os->currentIndexChanged(m_os->currentIndex());
         return;

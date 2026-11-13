@@ -1,4 +1,5 @@
 #include "HostInfo.h"
+#include "Paths.h"
 #include "AppSettings.h"
 
 #include <QFile>
@@ -148,6 +149,7 @@ QVersionNumber HostInfo::qemuVersion()
     if (it != cache.cend())
         return *it;
     QProcess p;
+    p.setProcessEnvironment(Paths::hostEnvironment());
     p.start(bin, {QStringLiteral("--version")});
     QVersionNumber v;
     if (p.waitForFinished(5000)) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QProcessEnvironment>
 #include <QString>
 
 // Well-known locations used by Bento. Everything follows the XDG base dir spec.
@@ -24,5 +25,10 @@ bool ensureDir(const QString &path, bool privateDir = false);
 QString mountPointFor(const QString &path);
 
 QString humanSize(qint64 bytes);
+
+// Environment for host programs (QEMU, qemu-img, pkexec, …). When running
+// from an AppImage, entries pointing into the bundle are dropped so host
+// tools never pick up our bundled libraries or Qt plugins.
+QProcessEnvironment hostEnvironment();
 
 } // namespace Paths

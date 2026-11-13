@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(bento-vm VERSION 0.1.0 LANGUAGES CXX)
+project(bento-vm VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -69,8 +69,11 @@ target_link_libraries(bento-vm PRIVATE bento_core)
 
 include(GNUInstallDirs)
 install(TARGETS bento-vm RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES data/bento-vm.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(FILES resources/icons/bento-vm.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+set(BENTO_APP_ID io.github.hyperstown.BentoVM)
+install(FILES data/${BENTO_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES data/${BENTO_APP_ID}.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES resources/icons/bento-vm.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+        RENAME ${BENTO_APP_ID}.svg)
 
 option(BENTO_BUILD_TESTS "Build smoke tests" OFF)
 if(BENTO_BUILD_TESTS)

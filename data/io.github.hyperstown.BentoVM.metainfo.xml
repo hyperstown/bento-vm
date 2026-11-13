@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.hyperstown.BentoVM</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>BentoVM</name>
+  <summary>GPU-accelerated QEMU/KVM virtual machines</summary>
+  <developer id="io.github.hyperstown">
+    <name>hyperstown</name>
+  </developer>
+  <description>
+    <p>
+      BentoVM is a front end for QEMU/KVM that treats Venus (Vulkan) and VirGL GPU
+      acceleration as first-class citizens, so GPU-accelerated virtual machines no
+      longer need a hand-written QEMU command line. VMs run as your user, without
+      root or libvirt.
+    </p>
+    <ul>
+      <li>Venus, VirGL or 2D graphics, shown in a built-in display</li>
+      <li>Clipboard sharing with a per-VM direction, and drag &amp; drop of files into the VM</li>
+      <li>USB passthrough for game controllers, drives and more</li>
+      <li>A setup wizard that detects the OS from the ISO and recommends CPU and memory</li>
+      <li>Several storage locations; VMs on a disconnected drive show as temporarily unavailable</li>
+      <li>Native KDE look, or the built-in Modern Dark and Modern Light themes</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.hyperstown.BentoVM.desktop</launchable>
+  <provides>
+    <binary>bento-vm</binary>
+  </provides>
+  <url type="homepage">https://github.com/hyperstown/bento-vm</url>
+  <url type="bugtracker">https://github.com/hyperstown/bento-vm/issues</url>
+  <url type="vcs-browser">https://github.com/hyperstown/bento-vm</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The VM library</caption>
+      <image>https://raw.githubusercontent.com/hyperstown/bento-vm/master/docs/screenshots/library-modern-dark.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>A VM running in the built-in display</caption>
+      <image>https://raw.githubusercontent.com/hyperstown/bento-vm/master/docs/screenshots/vm-window.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The setup wizard recommends CPU and memory</caption>
+      <image>https://raw.githubusercontent.com/hyperstown/bento-vm/master/docs/screenshots/wizard-resources.png</image>
+    </screenshot>
+  </screenshots>
+  <categories>
+    <category>System</category>
+    <category>Emulator</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-11-13">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

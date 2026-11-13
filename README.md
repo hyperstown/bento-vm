@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="resources/icons/bento-vm.svg" width="128" alt="Bento icon">
+  <img src="resources/icons/bento-vm.svg" width="128" alt="BentoVM icon">
 </p>
 
-<h1 align="center">Bento</h1>
+<h1 align="center">BentoVM</h1>
 
 <p align="center">
   <b>GPU-accelerated QEMU/KVM virtual machines, without the command line.</b><br>
@@ -17,15 +17,15 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/library-modern-dark.png" width="900" alt="Bento's VM library in the Modern Dark theme">
+  <img src="docs/screenshots/library-modern-dark.png" width="900" alt="BentoVM's VM library in the Modern Dark theme">
 </p>
 
-Bento is a Qt front end for QEMU/KVM that treats **Venus** (Vulkan) and VirGL GPU
+BentoVM is a Qt front end for QEMU/KVM that treats **Venus** (Vulkan) and VirGL GPU
 acceleration as first-class citizens, so GPU-accelerated VMs no longer need a
 hand-written `qemu-system-x86_64` command line.
 
 VMs run as **your user** (no root, no libvirt), each as an independent QEMU
-process. Closing Bento, or Bento crashing, doesn't take your VMs down; Bento
+process. Closing BentoVM, or BentoVM crashing, doesn't take your VMs down; BentoVM
 reconnects to them on its next start. It looks like a regular KDE application
 on Plasma and works on other desktops too.
 
@@ -58,7 +58,7 @@ on Plasma and works on other desktops too.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/vm-window.png" alt="Linux Mint running in Bento's built-in display"></td>
+    <td width="50%"><img src="docs/screenshots/vm-window.png" alt="Linux Mint running in BentoVM's built-in display"></td>
     <td width="50%"><img src="docs/screenshots/library-modern-light.png" alt="Library in the Modern Light theme"></td>
   </tr>
   <tr>
@@ -94,9 +94,40 @@ on Plasma and works on other desktops too.
 The library at the top shows a running VM, two powered-off ones and a VM whose
 external drive is unplugged (*Temporarily unavailable*).
 
+## Installation
+
+### AppImage
+
+Download `BentoVM-<version>-x86_64.AppImage` from the
+[Releases](https://github.com/hyperstown/bento-vm/releases) page, then:
+
+```sh
+chmod +x BentoVM-*-x86_64.AppImage
+./BentoVM-*-x86_64.AppImage
+```
+
+The AppImage contains BentoVM and Qt. QEMU, virglrenderer, OVMF and the GPU
+drivers come from your system (see [Requirements](#requirements)). It runs on
+distributions with glibc 2.39 or newer (Ubuntu 24.04, Fedora 40, Debian 13,
+Arch and newer). In the AppImage the *System* theme uses Qt's Fusion widgets
+with your desktop's colours and icons; for the native Breeze widgets, install
+a package or build from source.
+
+### Arch Linux (AUR)
+
+Coming soon.
+
+### Flatpak
+
+Coming soon.
+
+### From source
+
+See [Build & run](#build--run).
+
 ## Requirements
 
-Bento itself runs anywhere QEMU/KVM does; plain 2D and VirGL VMs work on any
+BentoVM itself runs anywhere QEMU/KVM does; plain 2D and VirGL VMs work on any
 recent distribution. **Venus** depends on fairly new host and guest software,
 so on LTS distributions it may not be available yet.
 
@@ -132,16 +163,16 @@ virtio-win guest tools there for clipboard and file drop.
 ### GPU notes
 
 Venus maps host GPU memory directly into the guest, so it depends on the host
-GPU driver and KVM. Bento is developed and tested on AMD (RADV). The rest of
+GPU driver and KVM. BentoVM is developed and tested on AMD (RADV). The rest of
 this list follows [Mesa's Venus documentation](https://docs.mesa3d.org/drivers/venus.html).
 
 - **AMD and Intel (Mesa RADV / ANV 21.1+)**: host kernel 6.13+.
 - **Intel CPU with a discrete GPU (AMD or NVIDIA), or Intel Meteor Lake / `xe`
   driver**: host kernel 6.16+ and QEMU 11.0+. KVM must honor the guest's
-  memory attributes (`-accel kvm,honor-guest-pat=…`). Bento adds
+  memory attributes (`-accel kvm,honor-guest-pat=…`). BentoVM adds
   `honor-guest-pat=auto` to Venus VMs automatically on QEMU 11+; QEMU then
   enables it only if the kernel supports it. With an older QEMU on an Intel
-  CPU, Bento shows a warning when the VM starts.
+  CPU, BentoVM shows a warning when the VM starts.
 - **NVIDIA (proprietary driver)**:
   - Venus needs driver **570.86 or newer**. With older drivers, use VirGL or 2D.
   - On an Intel CPU, the point above applies too.
@@ -184,14 +215,14 @@ cmake --install build --prefix ~/.local
 ```
 
 Running straight from the build folder works too, but Qt then logs
-`Failed to register with host portal … App info not found for 'bento-vm'`
-because the desktop portal can't find `bento-vm.desktop`. It's harmless and
-disappears once the desktop file is installed.
+`Failed to register with host portal … App info not found for 'io.github.hyperstown.BentoVM'`
+because the desktop portal can't find the app's desktop file. It's harmless and
+disappears once BentoVM is installed.
 
 ## Importing an existing VM
 
 *New VM → Use an existing disk image* boots a disk you already have (qcow2,
-raw, VMDK, VDI…), either in place or copied into the VM folder. Since Bento
+raw, VMDK, VDI…), either in place or copied into the VM folder. Since BentoVM
 doesn't run QEMU as root, the file must be readable and writable by your user
 (images under `/var/lib/libvirt/images`, for example, may need
 `sudo chown $USER: …`).
@@ -209,14 +240,14 @@ USB port, so a controller that resets or switches modes stays connected.
 Devices in *Settings → USB* are connected automatically whenever the VM starts
 and whenever they're plugged in while it runs.
 
-USB device nodes are only accessible to root by default, and Bento doesn't run
-QEMU as root. When you connect a device from the *USB* menu, Bento gets
+USB device nodes are only accessible to root by default, and BentoVM doesn't run
+QEMU as root. When you connect a device from the *USB* menu, BentoVM gets
 one-time access to it:
 
 - If spice-gtk's ACL helper is installed (spice-gtk comes with virt-viewer,
   virt-manager and GNOME Boxes), access is granted without a password and
   revoked as soon as you hand the device back or the VM stops.
-- Otherwise Bento asks for your administrator password. You can choose
+- Otherwise BentoVM asks for your administrator password. You can choose
   *Allow This Time* (until the device is unplugged or the computer restarts) or
   *Always Allow* (a udev rule for that vendor:product ID).
 
@@ -225,7 +256,7 @@ since QEMU opens them on its own; use *Allow Access…* there. Rules live in
 `/etc/udev/rules.d/70-bento-usb.rules`; delete a line (or the file) to revoke
 access.
 
-Bento asks for confirmation before taking a keyboard or mouse away from the
+BentoVM asks for confirmation before taking a keyboard or mouse away from the
 host, and warns if a USB drive is still mounted on the host.
 
 ## Keys in the VM window
@@ -245,7 +276,7 @@ host, and warns if a USB drive is still mounted on the host.
 | Sockets / pid files | `$XDG_RUNTIME_DIR/bento-vm/<vm-id>/` |
 
 A VM folder is self-contained: copy it anywhere and add it back with
-*File → Add Existing Bento VM Folder*.
+*File → Add Existing BentoVM Folder*.
 
 ## How it works
 

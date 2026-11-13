@@ -69,7 +69,7 @@ void MainWindow::buildActions()
     m_actNew->setToolTip(QStringLiteral("Create a virtual machine from an ISO or an existing disk"));
     connect(m_actNew, &QAction::triggered, this, [this] { openWizard(); });
 
-    m_actImportFolder = new QAction(QIcon::fromTheme(QStringLiteral("document-import")), QStringLiteral("Add Existing Bento VM Folder…"), this);
+    m_actImportFolder = new QAction(QIcon::fromTheme(QStringLiteral("document-import")), QStringLiteral("Add Existing BentoVM Folder…"), this);
     connect(m_actImportFolder, &QAction::triggered, this, &MainWindow::importFolder);
 
     m_actStart = new QAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), QStringLiteral("Start"), this);
@@ -106,13 +106,13 @@ void MainWindow::buildActions()
         if (Vm *vm = selectedVm())
             deleteVm(vm);
     });
-    m_actPrefs = new QAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Configure Bento…"), this);
+    m_actPrefs = new QAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Configure BentoVM…"), this);
     m_actPrefs->setShortcut(QKeySequence::Preferences);
     connect(m_actPrefs, &QAction::triggered, this, [this] { showSettings(); });
     m_actQuit = new QAction(QIcon::fromTheme(QStringLiteral("application-exit")), QStringLiteral("Quit"), this);
     m_actQuit->setShortcut(QKeySequence::Quit);
     connect(m_actQuit, &QAction::triggered, this, &QWidget::close);
-    m_actAbout = new QAction(QIcon::fromTheme(QStringLiteral("help-about")), QStringLiteral("About Bento"), this);
+    m_actAbout = new QAction(QIcon::fromTheme(QStringLiteral("help-about")), QStringLiteral("About BentoVM"), this);
     connect(m_actAbout, &QAction::triggered, this, &MainWindow::showAbout);
 }
 
@@ -431,8 +431,8 @@ void MainWindow::fillVmMenu(QMenu *menu, Vm *vm)
         menu->addSeparator();
         menu->addAction(QIcon::fromTheme(QStringLiteral("edit-clear-list")), QStringLiteral("Forget"), this, [this, vm] {
             if (QMessageBox::question(this, QStringLiteral("Forget %1?").arg(vm->name()),
-                                      QStringLiteral("Bento will stop listing this VM. No files are deleted; you can add the "
-                                                     "folder again later with File → Add Existing Bento VM Folder."))
+                                      QStringLiteral("BentoVM will stop listing this VM. No files are deleted; you can add the "
+                                                     "folder again later with File → Add Existing BentoVM Folder."))
                 == QMessageBox::Yes) {
                 QString err;
                 VmLibrary::instance()->remove(vm, false, &err);
@@ -551,7 +551,7 @@ void MainWindow::deleteVm(Vm *vm)
     QPushButton *del = box.addButton(QStringLiteral("Delete"), QMessageBox::DestructiveRole);
     del->setIcon(QIcon::fromTheme(QStringLiteral("edit-delete")));
     box.addButton(QMessageBox::Cancel);
-    auto *keep = new QCheckBox(QStringLiteral("Keep the files, only remove it from Bento"), &box);
+    auto *keep = new QCheckBox(QStringLiteral("Keep the files, only remove it from BentoVM"), &box);
     box.setCheckBox(keep);
     box.exec();
     if (box.clickedButton() != del)
@@ -587,7 +587,7 @@ void MainWindow::showSettings(bool storagePage)
 
 void MainWindow::importFolder()
 {
-    const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Choose a Bento VM folder (contains vm.json)"),
+    const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Choose a BentoVM folder (contains vm.json)"),
                                                           AppSettings::instance().defaultLocation());
     if (dir.isEmpty())
         return;
@@ -598,8 +598,8 @@ void MainWindow::importFolder()
 
 void MainWindow::showAbout()
 {
-    QMessageBox::about(this, QStringLiteral("About Bento"),
-                       QStringLiteral("<h3>Bento %1</h3>"
+    QMessageBox::about(this, QStringLiteral("About BentoVM"),
+                       QStringLiteral("<h3>BentoVM %1</h3>"
                                       "<p>A friendly QEMU/KVM front end with first-class support for "
                                       "<b>Venus</b> (Vulkan) and VirGL GPU acceleration.</p>"
                                       "<p>VMs run as your user, no root or libvirt needed.</p>")
@@ -623,7 +623,7 @@ void MainWindow::closeEvent(QCloseEvent *e)
     if (!vmWindowsOpen && !running.isEmpty()
         && AppSettings::instance().value(QStringLiteral("ui/quitAction"), QStringLiteral("ask")).toString() == QLatin1String("ask")) {
         QMessageBox box(QMessageBox::Question, QStringLiteral("VMs are still running"),
-                        QStringLiteral("%1 will keep running in the background. Open Bento again to get back to %2.")
+                        QStringLiteral("%1 will keep running in the background. Open BentoVM again to get back to %2.")
                             .arg(running.join(QStringLiteral(", ")), running.size() == 1 ? QStringLiteral("it") : QStringLiteral("them")),
                         QMessageBox::NoButton, this);
         QPushButton *keep = box.addButton(QStringLiteral("Keep Running"), QMessageBox::AcceptRole);

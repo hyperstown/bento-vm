@@ -56,6 +56,26 @@ QString mountPointFor(const QString &path)
     return QStorageInfo(p).rootPath();
 }
 
+QProcessEnvironment hostEnvironment()
+{
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    const QString appdir = env.value(QStringLiteral("APPDIR"));
+    if (appdir.isEmpty())
+        return env;
+    for (const QString &key : env.keys()) {
+        const QString value = env.value(key);
+        if (key == QLatin1String("APPDIR") || !value.contains(appdir))
+            continue;
+        QStringList parts = value.split(QLatin1Char(':'));
+        parts.removeIf([&](const QString &p) { return p.startsWith(appdir); });
+        if (parts.isEmpty() || key.startsWith(QLatin1String("QT_")) || key.startsWith(QLatin1String("LD_")))
+            env.remove(key);
+        else
+            env.insert(key, parts.join(QLatin1Char(':')));
+    }
+    return env;
+}
+
 QString humanSize(qint64 bytes)
 {
     return QLocale().formattedDataSize(bytes, 1, QLocale::DataSizeTraditionalFormat);
