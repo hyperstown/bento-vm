@@ -489,6 +489,7 @@ QWidget *NewVmWizard::buildFeaturesPage()
     m_tpm = new QCheckBox(h.swtpm.isEmpty() ? QStringLiteral("TPM 2.0 (install swtpm to enable)") : QStringLiteral("TPM 2.0"), fw);
     m_tpm->setEnabled(!h.swtpm.isEmpty());
     auto *fwRow = new QHBoxLayout;
+    fwRow->setSpacing(24);
     fwRow->addWidget(m_secureBoot);
     fwRow->addWidget(m_tpm);
     fwRow->addStretch();
@@ -503,6 +504,7 @@ QWidget *NewVmWizard::buildFeaturesPage()
     m_fileTransfer = new QCheckBox(QStringLiteral("Drag && drop files into the VM"), integ);
     m_audio = new QCheckBox(QStringLiteral("Sound"), integ);
     auto *iRow = new QHBoxLayout;
+    iRow->setSpacing(24);
     iRow->addWidget(m_fileTransfer);
     iRow->addWidget(m_audio);
     iRow->addStretch();
@@ -511,6 +513,7 @@ QWidget *NewVmWizard::buildFeaturesPage()
     m_sshPort = new QSpinBox(integ);
     m_sshPort->setRange(1024, 65535);
     auto *sRow = new QHBoxLayout;
+    sRow->setSpacing(10);
     sRow->addWidget(m_ssh);
     sRow->addWidget(m_sshPort);
     sRow->addWidget(new QLabel(QStringLiteral("→ guest port 22"), integ));
