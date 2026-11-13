@@ -1,6 +1,26 @@
-# Bento
+<p align="center">
+  <img src="resources/icons/bento-vm.svg" width="128" alt="Bento icon">
+</p>
 
-A Qt front end for QEMU/KVM that treats **Venus** (Vulkan) and VirGL GPU
+<h1 align="center">Bento</h1>
+
+<p align="center">
+  <b>GPU-accelerated QEMU/KVM virtual machines, without the command line.</b><br>
+  Venus (Vulkan) and VirGL acceleration · runs as your user · at home on KDE Plasma
+</p>
+
+<p align="center">
+  <img alt="Qt 6.7+" src="https://img.shields.io/badge/Qt-6.7%2B-41CD52?logo=qt&logoColor=white">
+  <img alt="QEMU 9.2+" src="https://img.shields.io/badge/QEMU-9.2%2B-FF6600?logo=qemu&logoColor=white">
+  <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white">
+  <img alt="Linux" src="https://img.shields.io/badge/platform-Linux-333333?logo=linux&logoColor=white">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/vm-window.png" width="900" alt="A Linux Mint VM running in Bento's built-in display">
+</p>
+
+Bento is a Qt front end for QEMU/KVM that treats **Venus** (Vulkan) and VirGL GPU
 acceleration as first-class citizens, so GPU-accelerated VMs no longer need a
 hand-written `qemu-system-x86_64` command line.
 
@@ -33,6 +53,34 @@ on Plasma and works on other desktops too.
 - UEFI/BIOS, Secure Boot, TPM 2.0 (with `swtpm`), port forwarding (SSH by
   default for Linux guests), PipeWire/PulseAudio sound, CD/ISO hot-swap,
   screenshots, "send key" combos, and the generated QEMU command line in VM settings.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/library-modern-dark.png" alt="Library, Modern Dark theme"></td>
+    <td align="center"><img src="docs/screenshots/library-modern-light.png" alt="Library, Modern Light theme"></td>
+    <td align="center"><img src="docs/screenshots/library-system.png" alt="Library, native KDE style"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Modern Dark</b></sub></td>
+    <td align="center"><sub><b>Modern Light</b></sub></td>
+    <td align="center"><sub><b>System</b> (native KDE/Breeze style)</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/wizard-os.png" alt="Wizard: operating system detected from the ISO"></td>
+    <td align="center"><img src="docs/screenshots/wizard-resources.png" alt="Wizard: recommended CPU and memory"></td>
+    <td align="center"><img src="docs/screenshots/wizard-graphics.png" alt="Wizard: graphics and integration"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The wizard detects the OS from the ISO…</sub></td>
+    <td align="center"><sub>…recommends CPU and memory for your hardware…</sub></td>
+    <td align="center"><sub>…and sets up Venus, clipboard and file drop</sub></td>
+  </tr>
+</table>
+
+The library above shows a running VM, two powered-off ones and a VM whose
+external drive is unplugged (*Temporarily unavailable*).
 
 ## Requirements
 
@@ -215,6 +263,9 @@ them inside a headless compositor (e.g. `kwin_wayland --virtual --socket t`,
 then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the
 virtio port emulated by `socat PTY,… UNIX-LISTEN:…`).
+
+`readme_shots` regenerates the images in `docs/screenshots/` from a staged
+sample library (it boots a Linux live ISO and a Windows installer ISO).
 
 ## Known limitations
 
