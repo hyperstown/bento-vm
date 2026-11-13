@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // Smoke test for the embedded display pipeline:
 // boots a disk-less QEMU (firmware screen only), connects through QMP +
 // D-Bus p2p, renders into DisplayWidget and saves the guest frame.

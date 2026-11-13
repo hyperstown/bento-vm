@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #pragma once
 
 // GDBus delivers callbacks through the default GLib main context. Qt on Linux

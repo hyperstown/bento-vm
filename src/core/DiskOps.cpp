@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "DiskOps.h"
 #include "Paths.h"
 #include "HostInfo.h"

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // Protocol test for VdAgent against the real spice-vdagentd/spice-vdagent
 // (running in a container, with the virtio port emulated by a pty bridged to
 // a unix socket). The container is driven through `podman exec`.

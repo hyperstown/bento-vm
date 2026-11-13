@@ -14,6 +14,7 @@
   <img alt="QEMU 9.2+" src="https://img.shields.io/badge/QEMU-9.2%2B-FF6600?logo=qemu&logoColor=white">
   <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white">
   <img alt="Linux" src="https://img.shields.io/badge/platform-Linux-333333?logo=linux&logoColor=white">
+  <img alt="License: GPL-2.0-or-later" src="https://img.shields.io/badge/license-GPL--2.0--or--later-blue">
 </p>
 
 <p align="center">
@@ -316,3 +317,10 @@ sample library (it boots a Linux live ISO and a Windows installer ISO).
   the *Keys* menu.
 - Folders can't be dropped yet (zip them first).
 - In QEMU-window mode the clipboard is both-ways-or-off and file drop is unavailable.
+
+## License
+
+BentoVM is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 2 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE).

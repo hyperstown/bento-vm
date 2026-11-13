@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "QemuCommand.h"
 #include "AppSettings.h"
 #include "HostInfo.h"

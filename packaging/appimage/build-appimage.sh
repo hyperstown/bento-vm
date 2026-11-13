@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 hyperstown
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Builds the BentoVM AppImage. Runs inside an Ubuntu 24.04 container (see
 # build.sh) so the result works on distributions with glibc >= 2.39.
 set -euo pipefail
@@ -67,6 +69,10 @@ for dir in wayland-graphics-integration-client; do
     mkdir -p "AppDir/usr/plugins/$dir"
     cp "$QTDIR/plugins/$dir/"*.so "AppDir/usr/plugins/$dir/"
 done
+# Notices for the bundled Qt/ICU (system libraries' copyright files are
+# copied by linuxdeploy already).
+mkdir -p AppDir/usr/share/doc/qt6
+cp "$SRC"/packaging/appimage/licenses/* AppDir/usr/share/doc/qt6/
 rm -f AppDir/usr/lib/libwayland-*.so* AppDir/usr/lib/libglib-2.0.so* AppDir/usr/lib/libgio-2.0.so* \
       AppDir/usr/lib/libgobject-2.0.so* AppDir/usr/lib/libgmodule-2.0.so* AppDir/usr/lib/libgthread-2.0.so*
 ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage "${EXCLUDES[@]}"

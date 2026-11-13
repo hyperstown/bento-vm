@@ -2,6 +2,7 @@
 <component type="desktop-application">
   <id>io.github.hyperstown.BentoVM</id>
   <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
   <name>BentoVM</name>
   <summary>GPU-accelerated QEMU/KVM virtual machines</summary>
   <developer id="io.github.hyperstown">

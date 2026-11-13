@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // USB passthrough plumbing test:
 //   usb_test list
 //   usb_test run <vm-name> <usb-id vvvv:pppp>

@@ -1,0 +1,25 @@
+BentoVM AppImage: third-party components
+=========================================
+
+BentoVM itself is licensed under the GNU General Public License, version 2
+or (at your option) any later version. See /usr/share/doc/bento-vm/LICENSE.
+
+This AppImage also contains unmodified copies of the following libraries,
+linked dynamically:
+
+Qt 6.8.3 (QtCore, QtGui, QtWidgets, QtNetwork, QtDBus, QtOpenGL,
+QtOpenGLWidgets, QtSvg, QtWaylandClient, QtXcbQpa and their plugins)
+  Used under the GNU Lesser General Public License, version 3 (LGPL-3.0.txt,
+  which refers to GPL-3.0.txt). You may replace these libraries with your own
+  build: extract the AppImage (--appimage-extract) and swap the files in
+  usr/lib and usr/plugins.
+  Source: https://download.qt.io/archive/qt/6.8/6.8.3/single/
+  Copyright (C) The Qt Company Ltd. and other contributors.
+
+ICU 73 (libicuuc, libicui18n, libicudata), shipped with Qt
+  License: Unicode License / ICU License, see ICU-LICENSE.txt.
+  Source: https://github.com/unicode-org/icu/releases/tag/release-73-2
+
+Other libraries come from Ubuntu 24.04; their copyright and license files
+are in /usr/share/doc/<package>/copyright inside the AppImage. Their sources
+are available from https://packages.ubuntu.com/noble/.

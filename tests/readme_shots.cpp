@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // Stages the README screenshots in a throwaway library and saves them with
 // rounded corners + a soft shadow (transparent PNG, fine on light/dark pages).
 // Run inside a headless compositor with throwaway XDG_* dirs:

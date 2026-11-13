@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // Screenshots of the USB passthrough UI (menu + settings page). Read-only:
 // it never toggles a device, so no permission prompt appears.
 //   usb_ui_test <out-dir> <vm-name> <theme>

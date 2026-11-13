@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // VMs run as detached QEMU processes. This checks that a VM keeps running
 // after the GUI exits and that a new GUI process re-attaches to it:
 //

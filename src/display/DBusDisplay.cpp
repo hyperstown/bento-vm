@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "DBusDisplay.h"
 #include "GlibIntegration.h"
 #include "core/QmpClient.h"

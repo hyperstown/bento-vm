@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 hyperstown
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 cmake_minimum_required(VERSION 3.21)
 project(bento-vm VERSION 1.0.0 LANGUAGES CXX)
 
@@ -72,6 +75,7 @@ install(TARGETS bento-vm RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 set(BENTO_APP_ID io.github.hyperstown.BentoVM)
 install(FILES data/${BENTO_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES data/${BENTO_APP_ID}.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(FILES resources/icons/bento-vm.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
         RENAME ${BENTO_APP_ID}.svg)
 

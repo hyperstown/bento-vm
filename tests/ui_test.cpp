@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 hyperstown
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 // End-to-end UI smoke test. Run it inside a headless compositor with
 // throwaway XDG_* directories; it drives the real widgets and saves
 // screenshots:
