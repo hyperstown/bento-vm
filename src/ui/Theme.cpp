@@ -33,16 +33,16 @@ QMenuBar::item:selected { background: @hover; border-radius: 6px; }
 QStatusBar { background: @bg; color: @muted; }
 QToolBar { background: @bg; border: none; padding: 10px 14px; spacing: 6px; }
 QToolBar::separator { background: @border; width: 1px; margin: 6px 6px; }
-QToolBar QToolButton { background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 7px 12px; color: @text; }
+QToolBar QToolButton { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 7px 12px; color: @text; }
 QToolBar QToolButton:hover { background: @hover; border-color: @border; }
 QToolBar QToolButton:pressed, QToolBar QToolButton:checked { background: @surface2; border-color: @border; }
 QToolBar QToolButton:disabled { color: @muted; }
-QToolButton#cardButton { background: @surface2; border: 1px solid @border; border-radius: 9px; padding: 5px 12px; }
+QToolButton#cardButton { background: @surface2; border: 1px solid @border; border-radius: 6px; padding: 5px 12px; }
 QToolButton#cardButton:hover { background: @hover; }
-QToolButton#cardPrimary { color: white; border: none; border-radius: 9px; padding: 5px 14px; font-weight: 600;
+QToolButton#cardPrimary { color: white; border: none; border-radius: 6px; padding: 5px 14px; font-weight: 600;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 @accent, stop:1 @accent2); }
 QToolButton#cardPrimary:disabled { background: @surface2; color: @muted; }
-QPushButton { background: @surface2; border: 1px solid @border; border-radius: 10px; padding: 8px 18px; color: @text; }
+QPushButton { background: @surface2; border: 1px solid @border; border-radius: 6px; padding: 8px 18px; color: @text; }
 QPushButton:hover { background: @hover; border-color: @borderHover; }
 QPushButton:pressed { background: @border; }
 QPushButton:disabled { color: @muted; background: @surface; }
@@ -125,7 +125,7 @@ QToolButton::menu-indicator { image: url(@chevronDown); subcontrol-origin: paddi
 QToolBar QToolButton[popupMode="2"] { padding-right: 24px; }
 QToolBar QToolButton[popupMode="1"] { padding-right: 28px; }
 QToolButton::menu-button { border: none; border-left: 1px solid @border; width: 20px; background: transparent;
-    border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+    border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 QToolButton::menu-button:hover { background: @surface2; }
 QToolButton::menu-arrow { image: url(@chevronDown); width: 10px; height: 10px; }
 QToolButton#hamburger { padding-right: 10px; }
