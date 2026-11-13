@@ -51,7 +51,7 @@ private:
     void fillVmMenu(QMenu *menu, Vm *vm);
     bool startVm(Vm *vm);
     void deleteVm(Vm *vm);
-    void showVmSettings(Vm *vm);
+    void showVmSettings(Vm *vm, const QString &page = QString());
     void importFolder();
     void showAbout();
 

@@ -6,7 +6,22 @@
 #include <QImage>
 #include <QObject>
 
+#include <functional>
+
 class QmpClient;
+struct UsbDevice;
+
+// A host USB device currently plugged into the VM (QEMU usb-host device).
+struct UsbAttachment
+{
+    QString qdevId;
+    int hostBus = 0;        // set for hot-plugged devices (matched by port)
+    QString hostPort;
+    QString vendorId;       // set for auto-connect devices (matched by id)
+    QString productId;
+    bool autoConnect() const { return hostBus == 0; }
+    bool matches(const UsbDevice &d) const;
+};
 class QTimer;
 class VdAgent;
 
@@ -49,6 +64,13 @@ public:
     // CD-ROM media at runtime (also persisted to the config).
     void changeCdrom(int index, const QString &isoPath);
 
+    // Host USB passthrough while running.
+    const QList<UsbAttachment> &usbAttachments() const { return m_usb; }
+    const UsbAttachment *usbAttachmentFor(const UsbDevice &d) const;
+    void attachUsb(const UsbDevice &d, std::function<void(const QString &error)> done = {});
+    void detachUsb(const QString &qdevId, std::function<void(const QString &error)> done = {});
+    void refreshUsb();
+
     QString runtimeDir() const;
     QString logFile() const;
     QmpClient *qmp() const { return m_qmp; }
@@ -66,6 +88,7 @@ Q_SIGNALS:
     void thumbnailChanged();
     void errorOccurred(const QString &title, const QString &details);
     void qmpReady();
+    void usbChanged();
 
 private:
     void setState(State s);
@@ -94,4 +117,5 @@ private:
     bool m_guestShutdown = false;
     QStringList m_warnings;
     QImage m_thumbnail;
+    QList<UsbAttachment> m_usb;
 };

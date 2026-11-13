@@ -11,6 +11,8 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QListWidget;
+class QPushButton;
 class QPlainTextEdit;
 class QTableWidget;
 class QTreeWidget;
@@ -21,6 +23,7 @@ class VmSettingsDialog : public PageDialog
     Q_OBJECT
 public:
     explicit VmSettingsDialog(Vm *vm, QWidget *parent = nullptr);
+    void showPage(const QString &name);   // "usb"
 
 protected:
     void accept() override;
@@ -31,6 +34,8 @@ private:
     void buildDisplay();
     void buildStorage();
     void buildNetwork();
+    void buildUsb();
+    void refreshUsbList();
     void buildIntegration();
     void buildFirmware();
     void buildAdvanced();
@@ -56,6 +61,9 @@ private:
     QCheckBox *m_network = nullptr;
     QComboBox *m_nic = nullptr;
     QTableWidget *m_forwards = nullptr;
+    QListWidget *m_usbList = nullptr;
+    QPushButton *m_usbAllow = nullptr;
+    int m_usbPage = -1;
     QComboBox *m_clipboard = nullptr;
     QCheckBox *m_fileTransfer = nullptr;
     QCheckBox *m_audio = nullptr;

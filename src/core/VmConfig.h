@@ -13,6 +13,14 @@ struct DiskSpec
     QString bus = QStringLiteral("virtio"); // virtio | sata | nvme
 };
 
+// A host USB device connected automatically whenever the VM starts.
+struct UsbAutoConnect
+{
+    QString vendorId;   // 4 lowercase hex digits
+    QString productId;
+    QString name;
+};
+
 struct PortForward
 {
     QString proto = QStringLiteral("tcp");
@@ -52,6 +60,8 @@ struct VmConfig
     bool network = true;
     QString nicModel = QStringLiteral("virtio-net-pci");
     QList<PortForward> portForwards;
+
+    QList<UsbAutoConnect> usbDevices;
 
     bool audio = true;
     QString clipboard = QStringLiteral("both");  // both | host-to-guest | guest-to-host | off

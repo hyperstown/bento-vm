@@ -7,6 +7,7 @@
 #include "core/OsDb.h"
 #include "core/Paths.h"
 #include "core/QemuCommand.h"
+#include "core/UsbDevices.h"
 #include "core/Vm.h"
 #include "core/VmLibrary.h"
 
@@ -26,12 +27,14 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTableWidget>
+#include <QTimer>
 #include <QTreeWidget>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -62,6 +65,7 @@ VmSettingsDialog::VmSettingsDialog(Vm *vm, QWidget *parent)
     buildDisplay();
     buildStorage();
     buildNetwork();
+    buildUsb();
     buildIntegration();
     buildFirmware();
     buildAdvanced();
@@ -347,6 +351,120 @@ void VmSettingsDialog::buildNetwork()
         if (m_forwards->currentRow() >= 0)
             m_forwards->removeRow(m_forwards->currentRow());
     });
+}
+
+void VmSettingsDialog::showPage(const QString &name)
+{
+    if (name == QLatin1String("usb") && m_usbPage >= 0)
+        setCurrentPage(m_usbPage);
+}
+
+void VmSettingsDialog::buildUsb()
+{
+    m_usbPage = m_nav->count();
+    QVBoxLayout *page = addPage(QStringLiteral("USB"), QIcon::fromTheme(QStringLiteral("drive-removable-media-usb"),
+                                                                       QIcon::fromTheme(QStringLiteral("drive-removable-media"))),
+                                QStringLiteral("Devices listed here are handed to the VM automatically whenever it starts, and as "
+                                               "soon as they're plugged in while it runs. To connect a device just for now, use "
+                                               "the USB menu in the VM window."));
+    m_usbList = new QListWidget(this);
+    m_usbList->setIconSize(QSize(28, 28));
+    m_usbList->setMinimumHeight(200);
+    page->addWidget(m_usbList);
+
+    auto *row = new QHBoxLayout;
+    auto *add = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add Device"), this);
+    auto *addMenu = new QMenu(add);
+    add->setMenu(addMenu);
+    auto *remove = new QPushButton(QIcon::fromTheme(QStringLiteral("list-remove")), QStringLiteral("Remove"), this);
+    m_usbAllow = new QPushButton(QIcon::fromTheme(QStringLiteral("dialog-password")), QStringLiteral("Allow Access…"), this);
+    m_usbAllow->setToolTip(QStringLiteral("Installs a udev rule so your user may use this device (asks for the administrator password)."));
+    row->addWidget(add);
+    row->addWidget(remove);
+    row->addStretch();
+    row->addWidget(m_usbAllow);
+    page->addLayout(row);
+    page->addWidget(PageDialog::hint(QStringLiteral("USB devices are only accessible to root by default. “Allow Access” adds a "
+                                                    "rule for that one device to %1.").arg(Usb::rulesFile()), this));
+
+    connect(addMenu, &QMenu::aboutToShow, this, [this, addMenu] {
+        addMenu->clear();
+        for (const UsbDevice &d : Usb::enumerate()) {
+            bool listed = false;
+            for (const UsbAutoConnect &u : std::as_const(m_cfg.usbDevices))
+                listed |= u.vendorId == d.vendorId && u.productId == d.productId;
+            QAction *a = addMenu->addAction(d.icon(), QStringLiteral("%1  (%2)").arg(d.displayName(), d.usbId()));
+            a->setEnabled(!listed);
+            connect(a, &QAction::triggered, this, [this, d] {
+                if (d.isKeyboardOrMouse()
+                    && QMessageBox::question(this, QStringLiteral("Hand over %1 at every start?").arg(d.displayName()),
+                                             QStringLiteral("While the VM runs, the host won't receive input from this device."))
+                           != QMessageBox::Yes)
+                    return;
+                m_cfg.usbDevices << UsbAutoConnect{d.vendorId, d.productId, d.displayName()};
+                refreshUsbList();
+                m_usbList->setCurrentRow(m_usbList->count() - 1);
+            });
+        }
+        if (addMenu->isEmpty())
+            addMenu->addAction(QStringLiteral("No USB devices plugged in"))->setEnabled(false);
+    });
+    connect(remove, &QPushButton::clicked, this, [this] {
+        const int row = m_usbList->currentRow();
+        if (row >= 0 && row < m_cfg.usbDevices.size()) {
+            m_cfg.usbDevices.removeAt(row);
+            refreshUsbList();
+        }
+    });
+    connect(m_usbAllow, &QPushButton::clicked, this, [this] {
+        const int row = m_usbList->currentRow();
+        if (row < 0 || row >= m_cfg.usbDevices.size())
+            return;
+        const UsbAutoConnect u = m_cfg.usbDevices[row];
+        m_usbAllow->setEnabled(false);
+        Usb::grantAccess(u.vendorId, u.productId, this, [this](bool ok, const QString &err) {
+            if (!ok)
+                QMessageBox::warning(this, QStringLiteral("Couldn't allow access"), err);
+            QTimer::singleShot(500, this, &VmSettingsDialog::refreshUsbList);
+        });
+    });
+    connect(m_usbList, &QListWidget::currentRowChanged, this, &VmSettingsDialog::refreshUsbList);
+    refreshUsbList();
+}
+
+void VmSettingsDialog::refreshUsbList()
+{
+    QSignalBlocker block(m_usbList);
+    const int keep = m_usbList->currentRow();
+    const int selected = m_cfg.usbDevices.isEmpty() ? -1 : qBound(0, keep, int(m_cfg.usbDevices.size()) - 1);
+    m_usbList->clear();
+    const QList<UsbDevice> host = Usb::enumerate();
+    bool selectedNeedsAccess = false;
+    for (int i = 0; i < m_cfg.usbDevices.size(); ++i) {
+        const UsbAutoConnect &u = m_cfg.usbDevices[i];
+        const UsbDevice *present = nullptr;
+        for (const UsbDevice &d : host)
+            if (d.vendorId == u.vendorId && d.productId == u.productId)
+                present = &d;
+        QString status;
+        QIcon icon = present ? present->icon() : Usb::iconFor(UsbDevice::Kind::Other);
+        if (!present) {
+            status = QStringLiteral("not plugged in");
+        } else if (!present->accessible()) {
+            status = QStringLiteral("needs permission");
+            icon = QIcon::fromTheme(QStringLiteral("dialog-warning"));
+            if (i == selected)
+                selectedNeedsAccess = true;
+        } else {
+            status = QStringLiteral("ready");
+        }
+        new QListWidgetItem(icon, QStringLiteral("%1  (%2:%3)\n%4")
+                                      .arg(u.name.isEmpty() ? QStringLiteral("USB device") : u.name, u.vendorId, u.productId, status),
+                            m_usbList);
+    }
+    if (selected >= 0)
+        m_usbList->setCurrentRow(selected);
+    m_usbAllow->setEnabled(selectedNeedsAccess);
 }
 
 void VmSettingsDialog::buildIntegration()

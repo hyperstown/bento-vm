@@ -28,6 +28,7 @@ add_library(bento_core OBJECT
     src/core/Vm.cpp
     src/core/VmLibrary.cpp
     src/core/DiskOps.cpp
+    src/core/UsbDevices.cpp
 
     src/display/GlibIntegration.cpp
     src/display/DBusDisplay.cpp
@@ -85,4 +86,12 @@ endif()
 if(BENTO_BUILD_TESTS)
     add_executable(lifecycle_test tests/lifecycle_test.cpp)
     target_link_libraries(lifecycle_test PRIVATE bento_core)
+endif()
+if(BENTO_BUILD_TESTS)
+    add_executable(usb_test tests/usb_test.cpp)
+    target_link_libraries(usb_test PRIVATE bento_core)
+endif()
+if(BENTO_BUILD_TESTS)
+    add_executable(usb_ui_test tests/usb_ui_test.cpp resources/resources.qrc)
+    target_link_libraries(usb_ui_test PRIVATE bento_core)
 endif()

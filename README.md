@@ -21,6 +21,9 @@ on Plasma and works on other desktops too.
   guest→host or off (switchable live from the VM window).
 - **Drag & drop files** onto the VM screen (or onto its card) to copy them into
   the guest; they land in the guest user's Downloads folder.
+- **USB passthrough**: plug host devices (game controllers, USB drives, …) into
+  a running VM from the *USB* menu, or have them connected automatically
+  whenever the VM starts.
 - **Setup wizard**: pick an ISO (ISOs in `~/Downloads` and recently used ones
   are listed) or an existing disk image. The OS is detected from the ISO's
   volume label, with `osinfo-detect` as a fallback, and CPU (cores × threads)
@@ -137,6 +140,24 @@ a plain `qemu-system-x86_64 -hda disk.qcow2` uses on q35, so existing installs
 keep booting. You can switch to VirtIO later in *Settings → Storage* once the
 guest's initramfs includes `virtio_blk`.
 
+## USB devices
+
+The *USB* menu in the VM window lists the host's USB devices; tick one to hand
+it to the running VM, untick it to give it back. A device stays assigned to its
+USB port, so a controller that resets or switches modes stays connected.
+Devices in *Settings → USB* are connected automatically whenever the VM starts
+and whenever they're plugged in while it runs.
+
+USB device nodes are only accessible to root by default, and Bento doesn't run
+QEMU as root. The first time you pass a device through, Bento offers to add a
+udev rule giving the logged-in user access to that device (by vendor:product
+ID). This asks for your administrator password once. The rules live in
+`/etc/udev/rules.d/70-bento-usb.rules`; delete a line (or the file) to revoke
+access.
+
+Bento asks for confirmation before taking a keyboard or mouse away from the
+host, and warns if a USB drive is still mounted on the host.
+
 ## Keys in the VM window
 
 - **Ctrl+Alt+F**: toggle full screen
@@ -178,7 +199,8 @@ A VM folder is self-contained: copy it anywhere and add it back with
 cmake -B build -DBENTO_BUILD_TESTS=ON && cmake --build build
 ```
 
-`display_test`, `ui_test` and `lifecycle_test` drive real QEMU instances. Run
+`display_test`, `ui_test`, `lifecycle_test`, `usb_test` and `usb_ui_test`
+drive real QEMU instances. Run
 them inside a headless compositor (e.g. `kwin_wayland --virtual --socket t`,
 then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the

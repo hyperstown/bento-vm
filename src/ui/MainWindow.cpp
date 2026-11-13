@@ -525,10 +525,11 @@ void MainWindow::openVm(Vm *vm)
     w->activateWindow();
 }
 
-void MainWindow::showVmSettings(Vm *vm)
+void MainWindow::showVmSettings(Vm *vm, const QString &page)
 {
     QWidget *parent = m_windows.value(vm->id()) ? static_cast<QWidget *>(m_windows.value(vm->id())) : this;
     VmSettingsDialog dlg(vm, parent);
+    dlg.showPage(page);
     dlg.exec();
 }
 

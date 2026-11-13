@@ -149,8 +149,15 @@ QemuCommand buildQemuCommand(const VmConfig &c, const QString &rt)
     }
 
     // Input: absolute pointer so the host cursor maps 1:1 into the guest.
-    a << QStringLiteral("-device") << QStringLiteral("qemu-xhci,id=xhci");
+    // 8 USB2 + 8 USB3 ports leave room for hot-plugged host devices.
+    a << QStringLiteral("-device") << QStringLiteral("qemu-xhci,id=xhci,p2=8,p3=8");
     a << QStringLiteral("-device") << QStringLiteral("usb-tablet,bus=xhci.0");
+    // Host devices to grab whenever they're plugged in (QEMU waits for them).
+    for (int i = 0; i < c.usbDevices.size(); ++i) {
+        const UsbAutoConnect &u = c.usbDevices[i];
+        a << QStringLiteral("-device") << QStringLiteral("usb-host,bus=xhci.0,vendorid=0x%1,productid=0x%2,id=usbauto%3")
+                                              .arg(u.vendorId, u.productId).arg(i);
+    }
 
     // Disks
     int sataPort = 0;

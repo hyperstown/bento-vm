@@ -25,6 +25,8 @@ public:
     static QWidget *hint(const QString &text, QWidget *parent = nullptr);
 
 protected:
+    void showEvent(QShowEvent *e) override;
+
     QListWidget *m_nav;
     QStackedWidget *m_stack;
     QDialogButtonBox *m_buttons;

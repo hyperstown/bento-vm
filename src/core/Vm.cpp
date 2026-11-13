@@ -3,12 +3,15 @@
 #include "Paths.h"
 #include "QemuCommand.h"
 #include "QmpClient.h"
+#include "UsbDevices.h"
 #include "agent/VdAgent.h"
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonObject>
+#include <QMap>
 #include <QProcess>
 #include <QTimer>
 
@@ -188,6 +191,14 @@ bool Vm::start(QString *error)
     if (!cmd.error.isEmpty())
         return fail(cmd.error);
     m_warnings = cmd.warnings;
+    if (!m_cfg.usbDevices.isEmpty()) {
+        for (const UsbDevice &d : Usb::enumerate()) {
+            for (const UsbAutoConnect &u : m_cfg.usbDevices) {
+                if (u.vendorId == d.vendorId && u.productId == d.productId && !d.accessible())
+                    m_warnings << QStringLiteral("No permission to use %1; allow it in Settings → USB.").arg(d.displayName());
+            }
+        }
+    }
 
     if (m_cfg.tpm && !host.swtpm.isEmpty()) {
         QString err;
@@ -282,6 +293,7 @@ void Vm::onQmpReady()
     });
     if (m_cfg.display == QLatin1String("embedded"))
         m_agent->connectTo(QemuRuntime::agentSocket(runtimeDir()));
+    refreshUsb();
     Q_EMIT qmpReady();
 }
 
@@ -297,6 +309,8 @@ void Vm::onQmpEvent(const QString &event, const QJsonObject &data)
         setState(State::Stopping);
     } else if (event == QLatin1String("POWERDOWN")) {
         m_shutdownRequested = true;
+    } else if (event == QLatin1String("DEVICE_DELETED")) {
+        refreshUsb();
     }
     Q_UNUSED(data);
 }
@@ -325,6 +339,10 @@ void Vm::cleanupRuntime()
 {
     QDir(runtimeDir()).removeRecursively();
     m_pid = 0;
+    if (!m_usb.isEmpty()) {
+        m_usb.clear();
+        Q_EMIT usbChanged();
+    }
 }
 
 QString Vm::logTail(int maxLines) const
@@ -416,4 +434,113 @@ void Vm::changeCdrom(int index, const QString &isoPath)
                                Q_EMIT errorOccurred(QStringLiteral("Couldn't insert the disc"), err);
                        });
     }
+}
+
+// ---------------------------------------------------------------------------
+// USB passthrough
+
+bool UsbAttachment::matches(const UsbDevice &d) const
+{
+    if (hostBus)
+        return hostBus == d.bus && hostPort == d.port;
+    return vendorId == d.vendorId && productId == d.productId;
+}
+
+const UsbAttachment *Vm::usbAttachmentFor(const UsbDevice &d) const
+{
+    for (const UsbAttachment &a : m_usb)
+        if (a.matches(d))
+            return &a;
+    return nullptr;
+}
+
+void Vm::attachUsb(const UsbDevice &d, std::function<void(const QString &)> done)
+{
+    if (!m_qmp->isReady()) {
+        if (done)
+            done(QStringLiteral("The VM isn't running."));
+        return;
+    }
+    // Bind to the physical port, so the device stays attached if it
+    // re-enumerates (many controllers do when they switch modes).
+    QString port = d.port;
+    const QString id = QStringLiteral("usb-h%1-%2").arg(d.bus).arg(port.replace(QLatin1Char('.'), QLatin1Char('_')));
+    m_qmp->execute(QStringLiteral("device_add"),
+                   {{QStringLiteral("driver"), QStringLiteral("usb-host")},
+                    {QStringLiteral("id"), id},
+                    {QStringLiteral("bus"), QStringLiteral("xhci.0")},
+                    {QStringLiteral("hostbus"), d.bus},
+                    {QStringLiteral("hostport"), d.port}},
+                   [this, done](const QJsonValue &, const QString &err) {
+                       refreshUsb();
+                       if (done)
+                           done(err);
+                   });
+}
+
+void Vm::detachUsb(const QString &qdevId, std::function<void(const QString &)> done)
+{
+    if (!m_qmp->isReady()) {
+        if (done)
+            done(QStringLiteral("The VM isn't running."));
+        return;
+    }
+    m_qmp->execute(QStringLiteral("device_del"), {{QStringLiteral("id"), qdevId}},
+                   [this, done](const QJsonValue &, const QString &err) {
+                       refreshUsb();
+                       if (done)
+                           done(err);
+                   });
+}
+
+void Vm::refreshUsb()
+{
+    if (!m_qmp->isReady())
+        return;
+    // QEMU is the source of truth: list usb-host devices and read their match properties.
+    m_qmp->execute(QStringLiteral("qom-list"), {{QStringLiteral("path"), QStringLiteral("/machine/peripheral")}},
+                   [this](const QJsonValue &r, const QString &err) {
+        if (!err.isEmpty())
+            return;
+        QStringList ids;
+        for (const QJsonValue &v : r.toArray()) {
+            const QJsonObject o = v.toObject();
+            if (o[QStringLiteral("type")].toString() == QLatin1String("child<usb-host>"))
+                ids << o[QStringLiteral("name")].toString();
+        }
+        auto result = std::make_shared<QMap<QString, UsbAttachment>>();
+        auto pending = std::make_shared<int>(int(ids.size()) * 4);
+        if (ids.isEmpty()) {
+            m_usb.clear();
+            Q_EMIT usbChanged();
+            return;
+        }
+        for (const QString &id : std::as_const(ids)) {
+            (*result)[id].qdevId = id;
+            for (const char *prop : {"hostbus", "hostport", "vendorid", "productid"}) {
+                const QString p = QString::fromLatin1(prop);
+                m_qmp->execute(QStringLiteral("qom-get"),
+                               {{QStringLiteral("path"), QStringLiteral("/machine/peripheral/") + id},
+                                {QStringLiteral("property"), p}},
+                               [this, id, p, result, pending](const QJsonValue &v, const QString &) {
+                                   UsbAttachment &a = (*result)[id];
+                                   const auto hex = [](const QJsonValue &x) {
+                                       return QStringLiteral("%1").arg(x.toInteger(), 4, 16, QLatin1Char('0'));
+                                   };
+                                   if (p == QLatin1String("hostbus"))
+                                       a.hostBus = int(v.toInteger());
+                                   else if (p == QLatin1String("hostport"))
+                                       a.hostPort = v.toString();
+                                   else if (p == QLatin1String("vendorid"))
+                                       a.vendorId = hex(v);
+                                   else
+                                       a.productId = hex(v);
+                                   if (--*pending == 0) {
+                                       m_usb = result->values();
+                                       Q_EMIT usbChanged();
+                                   }
+                               });
+            }
+        }
+    });
 }

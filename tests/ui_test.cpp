@@ -257,7 +257,7 @@ int main(int argc, char **argv)
     step(600, [&] {
         if (auto *d = w.findChild<VmSettingsDialog *>()) {
             shot(d, QStringLiteral("16-vmsettings-display"));
-            d->setCurrentPage(7);
+            d->setCurrentPage(8);
         }
     });
     step(800, [&] {

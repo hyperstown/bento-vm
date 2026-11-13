@@ -5,6 +5,8 @@
 #include "core/AppSettings.h"
 #include "core/OsDb.h"
 #include "core/QmpClient.h"
+#include "core/UsbDevices.h"
+#include "core/VmLibrary.h"
 #include "core/Vm.h"
 #include "display/DBusDisplay.h"
 #include "display/DisplayWidget.h"
@@ -19,6 +21,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QJsonObject>
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
@@ -78,6 +81,7 @@ VmWindow::VmWindow(Vm *vm, QWidget *parent)
             m_display->setAutoResize(m_vm->config().autoResize);
         updateState();
     });
+    connect(vm, &Vm::usbChanged, this, &VmWindow::updateUsbButton);
     connect(vm, &Vm::qmpReady, this, [this] {
         if (m_vm->config().display == QLatin1String("embedded"))
             connectDisplay();
@@ -278,6 +282,19 @@ void VmWindow::buildToolbar()
         m_mediaButton->setPopupMode(QToolButton::InstantPopup);
     updateMediaMenu();
 
+    // USB passthrough: the list is rebuilt every time the menu opens.
+    m_actUsb = new QAction(QIcon::fromTheme(QStringLiteral("drive-removable-media-usb"),
+                                            QIcon::fromTheme(QStringLiteral("drive-removable-media"))),
+                           QStringLiteral("USB"), this);
+    auto *usbMenu = new QMenu(this);
+    usbMenu->setToolTipsVisible(true);
+    connect(usbMenu, &QMenu::aboutToShow, this, &VmWindow::rebuildUsbMenu);
+    m_actUsb->setMenu(usbMenu);
+    m_actUsb->setToolTip(QStringLiteral("Plug host USB devices (controllers, drives…) into the VM"));
+    m_toolbar->addAction(m_actUsb);
+    if (auto *b = qobject_cast<QToolButton *>(m_toolbar->widgetForAction(m_actUsb)))
+        b->setPopupMode(QToolButton::InstantPopup);
+
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_toolbar->addWidget(spacer);
@@ -405,6 +422,8 @@ void VmWindow::updateState()
     m_actKeys->setEnabled(live);
     m_actSendFiles->setEnabled(live && m_vm->config().fileTransfer);
     m_actScreenshot->setEnabled(live);
+    m_actUsb->setEnabled(s == Vm::State::Running || s == Vm::State::Paused);
+    updateUsbButton();
 
     if (!active) {
         disconnectDisplay();
@@ -684,4 +703,199 @@ void VmWindow::closeEvent(QCloseEvent *e)
     }
     disconnectDisplay();
     e->accept();
+}
+
+// ---------------------------------------------------------------------------
+// USB passthrough
+
+void VmWindow::updateUsbButton()
+{
+    if (!m_vm || !m_actUsb)
+        return;
+    const int n = m_vm->isActive() ? int(m_vm->usbAttachments().size()) : 0;
+    m_actUsb->setText(n ? QStringLiteral("USB (%1)").arg(n) : QStringLiteral("USB"));
+}
+
+void VmWindow::rebuildUsbMenu()
+{
+    QMenu *menu = m_actUsb->menu();
+    menu->clear();
+    if (!m_vm)
+        return;
+    menu->addSection(QStringLiteral("Plug into %1").arg(m_vm->name()));
+
+    const QList<UsbDevice> devices = Usb::enumerate();
+    for (const UsbDevice &d : devices) {
+        QAction *a = menu->addAction(d.icon(), QStringLiteral("%1  (%2)").arg(d.displayName(), d.usbId()));
+        a->setCheckable(true);
+        const UsbAttachment *att = m_vm->usbAttachmentFor(d);
+        a->setChecked(att != nullptr);
+
+        Vm *owner = nullptr;
+        for (Vm *other : VmLibrary::instance()->vms())
+            if (other != m_vm && other->isActive() && other->usbAttachmentFor(d))
+                owner = other;
+        if (owner && !att) {
+            a->setEnabled(false);
+            a->setText(a->text() + QStringLiteral(" — used by %1").arg(owner->name()));
+        } else if (!att && !d.accessible()) {
+            a->setToolTip(QStringLiteral("Needs a one-time permission (administrator password)."));
+        }
+        if (att) {
+            const QString id = att->qdevId;
+            const bool isAuto = att->autoConnect();
+            const QString name = d.displayName();
+            connect(a, &QAction::triggered, this, [this, id, name, isAuto] { disconnectUsb(id, name, isAuto); });
+        } else {
+            connect(a, &QAction::triggered, this, [this, d] { connectUsb(d); });
+        }
+    }
+
+    // Attached to the VM but not (or no longer) plugged into the host.
+    for (const UsbAttachment &att : m_vm->usbAttachments()) {
+        bool present = false;
+        for (const UsbDevice &d : devices)
+            present |= att.matches(d);
+        if (present)
+            continue;
+        QString name = att.autoConnect() ? QStringLiteral("%1:%2").arg(att.vendorId, att.productId)
+                                         : QStringLiteral("Device on port %1-%2").arg(att.hostBus).arg(att.hostPort);
+        for (const UsbAutoConnect &u : m_vm->config().usbDevices)
+            if (att.autoConnect() && u.vendorId == att.vendorId && u.productId == att.productId && !u.name.isEmpty())
+                name = u.name;
+        QAction *a = menu->addAction(Usb::iconFor(UsbDevice::Kind::Other), name + QStringLiteral(" — waiting to be plugged in"));
+        a->setCheckable(true);
+        a->setChecked(true);
+        const QString id = att.qdevId;
+        const bool isAuto = att.autoConnect();
+        connect(a, &QAction::triggered, this, [this, id, name, isAuto] { disconnectUsb(id, name, isAuto); });
+    }
+
+    if (devices.isEmpty() && m_vm->usbAttachments().isEmpty())
+        menu->addAction(QStringLiteral("No USB devices found"))->setEnabled(false);
+    menu->addSeparator();
+    menu->addAction(QIcon::fromTheme(QStringLiteral("configure")), QStringLiteral("Connect Automatically at Startup…"), this,
+                    [this] { Q_EMIT settingsRequested(m_vm, QStringLiteral("usb")); });
+}
+
+void VmWindow::connectUsb(const UsbDevice &d)
+{
+    if (!m_vm || !m_vm->isActive())
+        return;
+    const QString name = d.displayName();
+    if (d.isKeyboardOrMouse()) {
+        if (QMessageBox::question(this, QStringLiteral("Hand over %1?").arg(name),
+                                  QStringLiteral("While it's plugged into the VM, the host won't receive any input from "
+                                                 "this %1. Make sure you have another one to unplug it again from this menu.")
+                                      .arg(d.kind() == UsbDevice::Kind::Keyboard ? QStringLiteral("keyboard")
+                                                                                 : QStringLiteral("mouse")))
+            != QMessageBox::Yes)
+            return;
+    }
+    const QStringList mounts = d.mountPoints();
+    if (!mounts.isEmpty()) {
+        QMessageBox box(QMessageBox::Warning, QStringLiteral("%1 is in use on the host").arg(name),
+                        QStringLiteral("It's mounted at %1. Eject it on the host first: handing a mounted drive to the VM "
+                                       "can corrupt the files on it.").arg(mounts.join(QStringLiteral(", "))),
+                        QMessageBox::Cancel, this);
+        QPushButton *anyway = box.addButton(QStringLiteral("Connect Anyway"), QMessageBox::DestructiveRole);
+        box.exec();
+        if (box.clickedButton() != anyway)
+            return;
+    }
+    if (d.accessible()) {
+        attachUsbNow(d);
+        return;
+    }
+
+    // USB device nodes are root-only by default; QEMU runs as us.
+    QMessageBox ask(QMessageBox::Question, QStringLiteral("Allow access to %1?").arg(name),
+                    QStringLiteral("Bento runs VMs as your user, and USB devices are only accessible to root by default.\n\n"
+                                   "Bento can add a rule that lets you use this device (%1) from now on. "
+                                   "You'll be asked for your administrator password once.").arg(d.usbId()),
+                    QMessageBox::Cancel, this);
+    ask.setInformativeText(QStringLiteral("The rule is stored in %1.").arg(Usb::rulesFile()));
+    QPushButton *allow = ask.addButton(QStringLiteral("Allow…"), QMessageBox::AcceptRole);
+    allow->setIcon(QIcon::fromTheme(QStringLiteral("dialog-password")));
+    ask.setDefaultButton(allow);
+    ask.exec();
+    if (ask.clickedButton() != allow)
+        return;
+
+    showToast(QStringLiteral("Waiting for authorization…"), 0);
+    Usb::grantAccess(d.vendorId, d.productId, this, [this, d](bool ok, const QString &err) {
+        if (!ok) {
+            m_toast->hide();
+            QMessageBox::warning(this, QStringLiteral("Couldn't allow access"), err);
+            return;
+        }
+        // udev applies the ACL asynchronously; give it a moment.
+        auto *tries = new int(0);
+        auto *timer = new QTimer(this);
+        timer->setInterval(200);
+        connect(timer, &QTimer::timeout, this, [this, d, timer, tries] {
+            UsbDevice current = d;
+            for (const UsbDevice &x : Usb::enumerate())
+                if (x.sysName == d.sysName)
+                    current = x;
+            if (current.accessible() || ++*tries > 15) {
+                timer->stop();
+                timer->deleteLater();
+                delete tries;
+                if (current.accessible()) {
+                    attachUsbNow(current);
+                } else {
+                    m_toast->hide();
+                    QMessageBox::warning(this, QStringLiteral("Still no access"),
+                                         QStringLiteral("The rule was added, but the device isn't accessible yet. "
+                                                        "Unplug it, plug it back in and try again."));
+                }
+            }
+        });
+        timer->start();
+    });
+}
+
+void VmWindow::attachUsbNow(const UsbDevice &d)
+{
+    const QString name = d.displayName();
+    m_vm->attachUsb(d, [this, name, d](const QString &err) {
+        if (!err.isEmpty()) {
+            showToast(QStringLiteral("Couldn't connect %1: %2").arg(name, err), 8000);
+            return;
+        }
+        // QEMU claims the port even when it can't open the device; it then
+        // keeps the generic "USB Host Device" name. Check after a moment.
+        QTimer::singleShot(1200, this, [this, name, d] {
+            const UsbAttachment *att = m_vm ? m_vm->usbAttachmentFor(d) : nullptr;
+            if (!att || !m_vm->qmp()->isReady())
+                return;
+            const QString id = att->qdevId;
+            m_vm->qmp()->execute(QStringLiteral("human-monitor-command"),
+                                 {{QStringLiteral("command-line"), QStringLiteral("info usb")}},
+                                 [this, name, id](const QJsonValue &r, const QString &) {
+                                     for (const QString &line : r.toString().split(QLatin1Char('\n'))) {
+                                         if (line.contains(QStringLiteral("ID: ") + id) && line.contains(QLatin1String("Product USB Host Device"))) {
+                                             showToast(QStringLiteral("QEMU couldn't open %1. Another program may be using it; "
+                                                                      "see the VM log for details.").arg(name), 9000);
+                                             return;
+                                         }
+                                     }
+                                     showToast(QStringLiteral("%1 is now connected to the VM.").arg(name), 4000);
+                                 });
+        });
+    });
+}
+
+void VmWindow::disconnectUsb(const QString &qdevId, const QString &name, bool autoConnect)
+{
+    m_vm->detachUsb(qdevId, [this, name, autoConnect](const QString &err) {
+        if (!err.isEmpty())
+            showToast(QStringLiteral("Couldn't disconnect %1: %2").arg(name, err), 8000);
+        else if (autoConnect)
+            showToast(QStringLiteral("%1 is back on the host. It will reconnect the next time the VM starts; "
+                                     "change that in Settings → USB.").arg(name), 7000);
+        else
+            showToast(QStringLiteral("%1 is back on the host.").arg(name), 4000);
+    });
 }

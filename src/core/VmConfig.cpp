@@ -55,6 +55,12 @@ QJsonObject VmConfig::toJson() const
     o[QStringLiteral("network")] = QJsonObject{{QStringLiteral("enabled"), network},
                                               {QStringLiteral("nic"), nicModel},
                                               {QStringLiteral("portForwards"), fw}};
+    QJsonArray usb;
+    for (const UsbAutoConnect &u : usbDevices)
+        usb.append(QJsonObject{{QStringLiteral("vendorId"), u.vendorId},
+                               {QStringLiteral("productId"), u.productId},
+                               {QStringLiteral("name"), u.name}});
+    o[QStringLiteral("usb")] = usb;
     o[QStringLiteral("integration")] = QJsonObject{{QStringLiteral("audio"), audio},
                                                   {QStringLiteral("clipboard"), clipboard},
                                                   {QStringLiteral("fileTransfer"), fileTransfer}};
@@ -115,6 +121,16 @@ VmConfig VmConfig::fromJson(const QJsonObject &o)
         f.guestPort = p[QStringLiteral("guestPort")].toInt();
         if (f.hostPort > 0 && f.guestPort > 0)
             c.portForwards << f;
+    }
+
+    for (const QJsonValue &v : o[QStringLiteral("usb")].toArray()) {
+        const QJsonObject u = v.toObject();
+        UsbAutoConnect a;
+        a.vendorId = u[QStringLiteral("vendorId")].toString().toLower();
+        a.productId = u[QStringLiteral("productId")].toString().toLower();
+        a.name = u[QStringLiteral("name")].toString();
+        if (a.vendorId.size() == 4 && a.productId.size() == 4)
+            c.usbDevices << a;
     }
 
     const QJsonObject integ = o[QStringLiteral("integration")].toObject();

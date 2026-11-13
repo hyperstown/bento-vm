@@ -1,5 +1,6 @@
 #include "PageDialog.h"
 
+#include <QAbstractItemView>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -71,7 +72,19 @@ QVBoxLayout *PageDialog::addPage(const QString &title, const QIcon &icon, const 
 
 void PageDialog::setCurrentPage(int index)
 {
+    // Selecting a row lays the list out; make sure stylesheet padding is
+    // applied first, or items get measured without it (when called before show()).
+    ensurePolished();
     m_nav->setCurrentRow(index);
+}
+
+void PageDialog::showEvent(QShowEvent *e)
+{
+    QDialog::showEvent(e);
+    // Lists filled in the constructor were measured before the stylesheet's
+    // item padding applied; lay them out again now that everything is polished.
+    for (QAbstractItemView *v : findChildren<QAbstractItemView *>())
+        v->doItemsLayout();
 }
 
 QFormLayout *PageDialog::makeForm()

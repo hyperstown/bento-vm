@@ -15,6 +15,7 @@ class QStackedWidget;
 class QTimer;
 class QToolButton;
 class Vm;
+struct UsbDevice;
 
 // One window per VM showing the embedded display plus VM controls.
 class VmWindow : public QMainWindow
@@ -28,7 +29,7 @@ public:
     void sendFiles(const QStringList &files);
 
 Q_SIGNALS:
-    void settingsRequested(Vm *vm);
+    void settingsRequested(Vm *vm, const QString &page = QString());
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -55,6 +56,11 @@ private:
     void sendCombo(const QList<uint32_t> &qnums);
     void startVm();
     void takeScreenshot();
+    void rebuildUsbMenu();
+    void updateUsbButton();
+    void connectUsb(const UsbDevice &d);
+    void attachUsbNow(const UsbDevice &d);
+    void disconnectUsb(const QString &qdevId, const QString &name, bool autoConnect);
 
     QPointer<Vm> m_vm;
     QStackedWidget *m_stack = nullptr;
@@ -78,6 +84,7 @@ private:
     QAction *m_actClipboard = nullptr;
     QAction *m_actSendFiles = nullptr;
     QAction *m_actMedia = nullptr;
+    QAction *m_actUsb = nullptr;
     QAction *m_actScreenshot = nullptr;
     QAction *m_actFullscreen = nullptr;
     QToolButton *m_clipButton = nullptr;
