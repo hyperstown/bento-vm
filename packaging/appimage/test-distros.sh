@@ -31,23 +31,27 @@ for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCK" ] && break; sleep 0.1; done
 # Runs inside each container.
 read -r -d '' INSIDE <<'EOF' || true
 set -e
+exec 3>&1 >/tmp/install.log 2>&1   # quiet unless installing fails
+trap '[ $? = 0 ] || cat /tmp/install.log >&3' EXIT
 if command -v apt-get >/dev/null; then
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq >/dev/null
+    apt-get update -qq
     apt-get install -y -qq --no-install-recommends libegl1 libgl1 libopengl0 libglx0 libgl1-mesa-dri \
         fontconfig fonts-noto-core libharfbuzz0b libx11-6 libx11-xcb1 libxcb1 libsm6 libice6 \
         libwayland-client0 libwayland-cursor0 libwayland-egl1 libdbus-1-3 libsystemd0 libudev1 \
-        libgmp10 libcom-err2 libxkbcommon0 adwaita-icon-theme breeze-icon-theme >/dev/null
-    apt-get install -y -qq --no-install-recommends libglib2.0-0t64 >/dev/null 2>&1 \
-        || apt-get install -y -qq --no-install-recommends libglib2.0-0 >/dev/null
+        libgmp10 libcom-err2 libxkbcommon0 adwaita-icon-theme breeze-icon-theme
+    apt-get install -y -qq --no-install-recommends libglib2.0-0t64 \
+        || apt-get install -y -qq --no-install-recommends libglib2.0-0
 elif command -v dnf >/dev/null; then
     dnf -q install -y mesa-libEGL mesa-dri-drivers libglvnd-opengl libglvnd-glx fontconfig harfbuzz \
         google-noto-sans-fonts libxkbcommon libX11-xcb libSM libICE libwayland-client libwayland-cursor \
-        libwayland-egl glib2 dbus-libs systemd-libs adwaita-icon-theme breeze-icon-theme >/dev/null
+        libwayland-egl glib2 dbus-libs systemd-libs adwaita-icon-theme breeze-icon-theme
 elif command -v pacman >/dev/null; then
     pacman -Syu --noconfirm --needed mesa libglvnd fontconfig harfbuzz noto-fonts libxkbcommon libx11 \
-        libxcb libsm libice wayland glib2 adwaita-icon-theme breeze-icons >/dev/null
+        libxcb libsm libice wayland glib2 adwaita-icon-theme breeze-icons
 fi
+exec 1>&3 2>&1 3>&-
+trap - EXIT
 . /etc/os-release
 echo "$PRETTY_NAME"
 mkdir -p /run/wl && chmod 700 /run/wl
