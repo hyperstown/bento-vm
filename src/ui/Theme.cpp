@@ -100,7 +100,7 @@ QTabBar::tab:selected { background: @surface2; color: @text; }
 #emptyTitle { font-size: 18pt; font-weight: 700; }
 #toast { background: @surface2; border: 1px solid @border; border-radius: 14px; }
 QFrame#banner { background: @bannerBg; border: 1px solid @bannerBorder; border-radius: 12px; }
-QFrame#card, QFrame#optionCard { background: @surface; border: 1px solid @border; border-radius: 14px; }
+QFrame#card, QFrame#optionCard { background: @surface; border: 1px solid @border; border-radius: 8px; }
 QFrame#optionCard:hover { border-color: @borderHover; }
 QFrame#optionCard[checked="true"] { border: 2px solid @accent; }
 QFrame#infoPage { background: @bg; }
