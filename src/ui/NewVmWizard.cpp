@@ -395,7 +395,7 @@ QWidget *NewVmWizard::buildOsPage()
         const QString osId = m_os->currentData().toString();
     const OsProfile &p = OsDb::profile(osId);
         m_osHint->setText(p.hint);
-        m_detectIcon->setPixmap(OsIcon::badge(p.id, 64, devicePixelRatioF()));
+        Icons::showIn(m_detectIcon, QIcon(OsIcon::badge(p.id, 64, devicePixelRatioF())), 64);
         if (!m_nameEdited)
             m_name->setText(uniqueName(p.family == OsFamily::Windows ? QStringLiteral("Windows") : p.name));
     });
@@ -749,7 +749,7 @@ void NewVmWizard::startDetection()
     }
     m_detectTitle->setText(QStringLiteral("Detecting the operating system…"));
     m_detectDetail->setText(QFileInfo(path).fileName());
-    m_detectIcon->setPixmap(Icons::fromTheme(QStringLiteral("search")).pixmap(64, 64));
+    Icons::showIn(m_detectIcon, Icons::fromTheme(QStringLiteral("search")), 64);
     m_next->setEnabled(false);
     m_detectWatcher.setFuture(QtConcurrent::run([path] { return OsDb::detect(path); }));
 }

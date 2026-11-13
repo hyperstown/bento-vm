@@ -6,7 +6,9 @@
 
 #include <QApplication>
 #include <QHash>
+#include <QEvent>
 #include <QIconEngine>
+#include <QLabel>
 #include <QLoggingCategory>
 #include <QPainter>
 #include <QPalette>
@@ -112,6 +114,30 @@ QIcon symbolicIcon(const QStringList &names)
     return {};
 }
 
+class LabelIcon : public QObject
+{
+public:
+    static constexpr const char *kName = "bentoLabelIcon";
+    LabelIcon(QLabel *label, const QIcon &icon, int size) : QObject(label), m_label(label), m_icon(icon), m_size(size)
+    {
+        setObjectName(QLatin1String(kName));
+        label->installEventFilter(this);
+        update();
+    }
+    bool eventFilter(QObject *, QEvent *e) override
+    {
+        if (e->type() == QEvent::PaletteChange || e->type() == QEvent::StyleChange)
+            update();
+        return false;
+    }
+
+private:
+    void update() { m_label->setPixmap(m_icon.pixmap(QSize(m_size, m_size), m_label->devicePixelRatioF())); }
+    QLabel *m_label;
+    QIcon m_icon;
+    int m_size;
+};
+
 QIcon resolve(const QString &name)
 {
     const QStringList names = QStringList{name} + alternatives().value(name);
@@ -142,6 +168,13 @@ QIcon Icons::fromTheme(const QString &name, const QIcon &fallback)
 {
     const QIcon icon = resolve(name);
     return icon.isNull() ? fallback : icon;
+}
+
+void Icons::showIn(QLabel *label, const QIcon &icon, int size)
+{
+    // Replaces an earlier icon.
+    delete label->findChild<QObject *>(QLatin1String(LabelIcon::kName), Qt::FindDirectChildrenOnly);
+    new LabelIcon(label, icon, size);
 }
 
 bool Icons::isSymbolic(const QIcon &icon)

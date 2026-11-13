@@ -207,7 +207,7 @@ void MainWindow::buildCentral()
     m_kvmBanner->setFrameShape(QFrame::StyledPanel);
     auto *kb = new QHBoxLayout(m_kvmBanner);
     auto *kIcon = new QLabel(m_kvmBanner);
-    kIcon->setPixmap(Icons::fromTheme(QStringLiteral("dialog-warning")).pixmap(22, 22));
+    Icons::showIn(kIcon, Icons::fromTheme(QStringLiteral("dialog-warning")), 22);
     kb->addWidget(kIcon);
     auto *kText = new QLabel(QStringLiteral("<b>Hardware virtualization isn't available.</b> %1").arg(h.kvmProblem), m_kvmBanner);
     kText->setWordWrap(true);

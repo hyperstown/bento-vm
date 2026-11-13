@@ -6,6 +6,8 @@
 #include <QIcon>
 #include <QString>
 
+class QLabel;
+
 // Icons from the desktop's icon theme, findable on non-KDE desktops too.
 // BentoVM asks for KDE/freedesktop names ("configure", "list-add", …). Themes
 // such as GNOME's Adwaita lack some of them or only ship single-colour
@@ -18,5 +20,8 @@ namespace Icons {
 QIcon fromTheme(const QString &name);
 QIcon fromTheme(const QString &name, const QIcon &fallback);
 bool isSymbolic(const QIcon &icon);
+// Shows the icon as the label's pixmap and redraws it when the palette or style
+// changes, so symbolic glyphs keep the text colour.
+void showIn(QLabel *label, const QIcon &icon, int size);
 
 } // namespace Icons

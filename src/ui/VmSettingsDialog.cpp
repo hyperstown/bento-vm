@@ -57,7 +57,7 @@ VmSettingsDialog::VmSettingsDialog(Vm *vm, QWidget *parent)
         banner->setFrameShape(QFrame::StyledPanel);
         auto *bl = new QHBoxLayout(banner);
         auto *icon = new QLabel(banner);
-        icon->setPixmap(Icons::fromTheme(QStringLiteral("dialog-information")).pixmap(22, 22));
+        Icons::showIn(icon, Icons::fromTheme(QStringLiteral("dialog-information")), 22);
         bl->addWidget(icon);
         bl->addWidget(new QLabel(QStringLiteral("The VM is running. Hardware changes apply the next time it starts; "
                                                 "clipboard and file transfer settings apply right away."), banner), 1);
