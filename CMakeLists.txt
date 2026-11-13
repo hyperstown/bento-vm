@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 cmake_minimum_required(VERSION 3.21)
-project(bento-vm VERSION 1.0.0 LANGUAGES CXX)
+project(bento-vm VERSION 1.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -105,4 +105,8 @@ endif()
 if(BENTO_BUILD_TESTS)
     add_executable(readme_shots tests/readme_shots.cpp resources/resources.qrc)
     target_link_libraries(readme_shots PRIVATE bento_core)
+endif()
+if(BENTO_BUILD_TESTS)
+    add_executable(theme_shot tests/theme_shot.cpp resources/resources.qrc)
+    target_link_libraries(theme_shot PRIVATE bento_core)
 endif()

@@ -107,12 +107,12 @@ chmod +x BentoVM-*-x86_64.AppImage
 ./BentoVM-*-x86_64.AppImage
 ```
 
-The AppImage contains BentoVM and Qt. QEMU, virglrenderer, OVMF and the GPU
+The AppImage contains BentoVM, Qt and KDE's Breeze style and Plasma
+integration, so on KDE Plasma it looks and behaves like a native application
+(your fonts, colours and file dialogs). QEMU, virglrenderer, OVMF and the GPU
 drivers come from your system (see [Requirements](#requirements)). It runs on
 distributions with glibc 2.39 or newer (Ubuntu 24.04, Fedora 40, Debian 13,
-Arch and newer). In the AppImage the *System* theme uses Qt's Fusion widgets
-with your desktop's colours and icons; for the native Breeze widgets, install
-a package or build from source.
+Arch and newer).
 
 ### Arch Linux (AUR)
 
