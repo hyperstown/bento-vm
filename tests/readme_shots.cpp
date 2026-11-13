@@ -3,6 +3,9 @@
 // Run inside a headless compositor with throwaway XDG_* dirs:
 //
 //   readme_shots <out-dir> <linux-live.iso> <windows.iso> <arch.iso>
+//   readme_shots --library <out-dir> <name> <linux-live.iso> <windows.iso>
+// The second form only captures the library in the current desktop style
+// (e.g. with a Breeze Dark kdeglobals), reusing thumbnails from a full run.
 #include "core/AppSettings.h"
 #include "core/DiskOps.h"
 #include "core/Paths.h"
@@ -136,15 +139,20 @@ int main(int argc, char **argv)
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/bento-vm.svg")));
     if (argc < 5)
         return 2;
-    g_out = QString::fromLocal8Bit(argv[1]);
-    const QString linuxIso = QString::fromLocal8Bit(argv[2]);
-    const QString winIso = QString::fromLocal8Bit(argv[3]);
-    const QString archIso = QString::fromLocal8Bit(argv[4]);
+    const bool libraryOnly = QByteArray(argv[1]) == "--library";
+    if (libraryOnly && argc < 6)
+        return 2;
+    const int a = libraryOnly ? 2 : 1;
+    g_out = QString::fromLocal8Bit(argv[a]);
+    const QString shotName = libraryOnly ? QString::fromLocal8Bit(argv[a + 1]) : QString();
+    const QString linuxIso = QString::fromLocal8Bit(argv[libraryOnly ? a + 2 : a + 1]);
+    const QString winIso = QString::fromLocal8Bit(argv[libraryOnly ? a + 3 : a + 2]);
+    const QString archIso = libraryOnly ? QString() : QString::fromLocal8Bit(argv[a + 3]);
     QDir().mkpath(g_out);
 
     GlibIntegration::ensure();
     Theme::instance()->init();
-    Theme::instance()->apply(QStringLiteral("modern-dark"));
+    Theme::instance()->apply(libraryOnly ? QStringLiteral("system") : QStringLiteral("modern-dark"));
     AppSettings::instance().setCloseAction(QStringLiteral("keep"));
     // Neutral-looking paths: they are visible in the wizard and on cards.
     const QString lib = QStringLiteral("/var/tmp/Virtual Machines");
@@ -169,6 +177,25 @@ int main(int argc, char **argv)
     MainWindow mw;
     mw.resize(1290, 720);
     mw.show();
+
+    if (libraryOnly) {
+        win->setThumbnail(QImage(g_out + QStringLiteral("/raw-Windows 10.png")));
+        mint->setThumbnail(QImage(g_out + QStringLiteral("/raw-Linux Mint.png")));
+        step(500, [&] {
+            QString err;
+            mint->start(&err);   // only for the "Running" state on the card
+        });
+        step(3000, [&] {
+            for (VmCard *c : mw.findChildren<VmCard *>())
+                if (c->vm() == mint)
+                    Q_EMIT c->clicked(c);
+        });
+        step(1000, [&] { framed(&mw, shotName); });
+        step(100, [&] { mint->forceStop(); });
+        step(2000, [&] { app.quit(); });
+        run();
+        return app.exec();
+    }
 
     auto grabThumb = [](Vm *vm) {
         VmWindow *w = nullptr;

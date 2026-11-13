@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/vm-window.png" width="900" alt="A Linux Mint VM running in Bento's built-in display">
+  <img src="docs/screenshots/library-modern-dark.png" width="900" alt="Bento's VM library in the Modern Dark theme">
 </p>
 
 Bento is a Qt front end for QEMU/KVM that treats **Venus** (Vulkan) and VirGL GPU
@@ -58,28 +58,40 @@ on Plasma and works on other desktops too.
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/library-modern-dark.png" alt="Library, Modern Dark theme"></td>
-    <td align="center"><img src="docs/screenshots/library-modern-light.png" alt="Library, Modern Light theme"></td>
-    <td align="center"><img src="docs/screenshots/library-system.png" alt="Library, native KDE style"></td>
+    <td width="50%"><img src="docs/screenshots/vm-window.png" alt="Linux Mint running in Bento's built-in display"></td>
+    <td width="50%"><img src="docs/screenshots/library-modern-light.png" alt="Library in the Modern Light theme"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Modern Dark</b></sub></td>
-    <td align="center"><sub><b>Modern Light</b></sub></td>
-    <td align="center"><sub><b>System</b> (native KDE/Breeze style)</sub></td>
+    <td align="center"><sub>A VM in the built-in display, with clipboard, file drop and USB controls</sub></td>
+    <td align="center"><sub>Modern Light theme</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/wizard-os.png" alt="Wizard: operating system detected from the ISO"></td>
-    <td align="center"><img src="docs/screenshots/wizard-resources.png" alt="Wizard: recommended CPU and memory"></td>
-    <td align="center"><img src="docs/screenshots/wizard-graphics.png" alt="Wizard: graphics and integration"></td>
+    <td><img src="docs/screenshots/library-system.png" alt="Library in the native KDE Breeze style"></td>
+    <td><img src="docs/screenshots/library-system-dark.png" alt="Library in the native KDE Breeze Dark style"></td>
   </tr>
   <tr>
-    <td align="center"><sub>The wizard detects the OS from the ISO…</sub></td>
-    <td align="center"><sub>…recommends CPU and memory for your hardware…</sub></td>
-    <td align="center"><sub>…and sets up Venus, clipboard and file drop</sub></td>
+    <td align="center"><sub>System theme: a regular KDE application (Breeze)…</sub></td>
+    <td align="center"><sub>…that follows your colour scheme (Breeze Dark)</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/wizard-os.png" alt="Setup wizard: operating system detected from the ISO"></td>
+    <td><img src="docs/screenshots/wizard-resources.png" alt="Setup wizard: recommended CPU and memory"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The setup wizard detects the OS from the ISO…</sub></td>
+    <td align="center"><sub>…and recommends CPU and memory for your hardware</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/wizard-graphics.png" alt="Setup wizard: graphics and integration"></td>
+    <td><img src="docs/screenshots/settings-appearance.png" alt="Settings: appearance"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Venus, clipboard direction, file drop and SSH in one step</sub></td>
+    <td align="center"><sub>Pick the look in Settings → Appearance</sub></td>
   </tr>
 </table>
 
-The library above shows a running VM, two powered-off ones and a VM whose
+The library at the top shows a running VM, two powered-off ones and a VM whose
 external drive is unplugged (*Temporarily unavailable*).
 
 ## Requirements
