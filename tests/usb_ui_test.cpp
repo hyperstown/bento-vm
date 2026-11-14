@@ -37,14 +37,10 @@ int main(int argc, char **argv)
     if (!vm)
         return 2;
 
-    // One auto-connect entry so the settings page has content.
-    const QList<UsbDevice> host = Usb::enumerate();
+    // A saved auto-connect entry for a device that isn't plugged in, so the
+    // settings page has content.
     VmConfig c = vm->config();
-    c.usbDevices.clear();
-    for (const UsbDevice &d : host)
-        if (d.kind() == UsbDevice::Kind::GameController)
-            c.usbDevices << UsbAutoConnect{d.vendorId, d.productId, d.displayName()};
-    c.usbDevices << UsbAutoConnect{QStringLiteral("054c"), QStringLiteral("09cc"), QStringLiteral("Wireless Controller")};
+    c.usbDevices = {UsbAutoConnect{QStringLiteral("1234"), QStringLiteral("5678"), QStringLiteral("Example USB device")}};
     vm->updateConfig(c);
 
     auto *w = new VmWindow(vm);
