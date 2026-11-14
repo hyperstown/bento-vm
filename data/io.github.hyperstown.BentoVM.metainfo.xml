@@ -51,6 +51,16 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.0.3" date="2026-11-14">
+      <description>
+        <p>Creating virtual machines works reliably on slower drives:</p>
+        <ul>
+          <li>The window no longer freezes while a disk is created. It shows progress and can be canceled, which removes the unfinished VM.</li>
+          <li>Creating a large disk no longer fails with an empty error message when it takes longer than a minute.</li>
+          <li>Error messages always say what went wrong and why, with details for bug reports.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.2" date="2026-11-13">
       <description>
         <p>BentoVM now looks right on every distribution and desktop:</p>
