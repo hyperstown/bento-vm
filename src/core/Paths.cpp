@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Paths.h"
+#include "Errors.h"
 
 #include <QDir>
 #include <QFile>
@@ -9,6 +10,9 @@
 #include <QLocale>
 #include <QStandardPaths>
 #include <QStorageInfo>
+
+#include <cerrno>
+#include <sys/stat.h>
 
 namespace Paths {
 
@@ -36,10 +40,33 @@ QString thumbnailFile(const QString &vmId) { return cacheDir() + QStringLiteral(
 QString libraryCacheFile() { return dataDir() + QStringLiteral("/library.json"); }
 QString defaultStorageLocation() { return dataDir() + QStringLiteral("/machines"); }
 
-bool ensureDir(const QString &path, bool privateDir)
+bool ensureDir(const QString &path, bool privateDir, QString *error)
 {
-    if (!QDir().mkpath(path))
+    auto fail = [error](const QString &msg) {
+        if (error)
+            *error = msg;
         return false;
+    };
+    if (path.isEmpty())
+        return fail(QStringLiteral("No folder was given."));
+    const QString clean = QDir::cleanPath(QDir(path).absolutePath());
+    // mkdir each missing component ourselves: QDir::mkpath() doesn't say why it failed.
+    QStringList missing;
+    for (QString p = clean; !QFileInfo(p).isDir();) {
+        if (QFileInfo::exists(p))
+            return fail(QStringLiteral("“%1” exists but isn't a folder.").arg(p));
+        missing.prepend(p);
+        const QString parent = QFileInfo(p).absolutePath();
+        if (parent == p)
+            break;
+        p = parent;
+    }
+    for (const QString &dir : std::as_const(missing)) {
+        if (::mkdir(QFile::encodeName(dir).constData(), 0755) != 0 && errno != EEXIST)
+            return fail(QStringLiteral("Couldn't create the folder “%1”: %2.").arg(dir, Errors::fromErrno()));
+    }
+    if (!QFileInfo(clean).isDir())   // e.g. a dangling symlink in the way
+        return fail(QStringLiteral("Couldn't create the folder “%1”.").arg(clean));
     if (privateDir)
         QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
     return true;

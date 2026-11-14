@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "NewVmWizard.h"
+#include "ErrorDialog.h"
 #include "Icons.h"
 #include "OsIcon.h"
 #include "PageDialog.h"
@@ -20,7 +21,6 @@
 #include <QComboBox>
 #include <QDir>
 #include <QDragEnterEvent>
-#include <QEventLoop>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -29,10 +29,9 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMessageBox>
 #include <QMimeData>
 #include <QMouseEvent>
-#include <QProgressDialog>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
@@ -204,11 +203,26 @@ NewVmWizard::NewVmWizard(QWidget *parent)
     footer->addWidget(m_back);
     footer->addWidget(m_next);
 
+    // Shown while the VM is being created; slow drives can take minutes.
+    m_progressRow = new QWidget(this);
+    auto *pl = new QVBoxLayout(m_progressRow);
+    pl->setContentsMargins(0, 0, 0, 0);
+    pl->setSpacing(6);
+    m_progressLabel = new QLabel(m_progressRow);
+    m_progressBar = new QProgressBar(m_progressRow);
+    m_progressBar->setTextVisible(false);
+    pl->addWidget(m_progressLabel);
+    pl->addWidget(m_progressBar);
+    pl->addWidget(PageDialog::hint(QStringLiteral("Large disks can take a few minutes to create on slower drives."),
+                                   m_progressRow));
+    m_progressRow->hide();
+
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(22, 18, 22, 16);
     lay->addLayout(header);
     lay->addSpacing(8);
     lay->addWidget(m_pages, 1);
+    lay->addWidget(m_progressRow);
     lay->addSpacing(6);
     lay->addLayout(footer);
 
@@ -216,6 +230,13 @@ NewVmWizard::NewVmWizard(QWidget *parent)
     connect(m_back, &QPushButton::clicked, this, &NewVmWizard::back);
     connect(m_next, &QPushButton::clicked, this, &NewVmWizard::next);
     connect(&m_detectWatcher, &QFutureWatcher<OsDb::Detection>::finished, this, &NewVmWizard::onDetected);
+    connect(&m_creator, &VmCreator::progress, this, [this](const QString &step, int percent) {
+        m_progressLabel->setText(percent >= 0 ? QStringLiteral("%1 %2%").arg(step).arg(percent) : step);
+        m_progressBar->setRange(0, percent >= 0 ? 100 : 0);   // 0–0: busy
+        if (percent >= 0)
+            m_progressBar->setValue(percent);
+    });
+    connect(&m_creator, &VmCreator::finished, this, &NewVmWizard::onCreated);
 
     goTo(SourcePage);
     scanForIsos();
@@ -457,7 +478,8 @@ QWidget *NewVmWizard::buildResourcesPage()
         if (dir.isEmpty()) {
             Combos::select(m_location, AppSettings::instance().defaultLocation());
         } else {
-            m_location->insertItem(i, Icons::fromTheme(QStringLiteral("folder")), dir, dir);
+            const QString clean = QDir::cleanPath(dir);
+            m_location->insertItem(i, Icons::fromTheme(QStringLiteral("folder")), clean, clean);
             m_location->setCurrentIndex(i);
         }
         updateLocationInfo();
@@ -620,7 +642,7 @@ void NewVmWizard::updateButtons()
 bool NewVmWizard::validatePage(int page)
 {
     auto fail = [this](const QString &t, const QString &m) {
-        QMessageBox::warning(this, t, m);
+        ErrorDialog::show(this, t, m);
         return false;
     };
     switch (page) {
@@ -649,9 +671,11 @@ bool NewVmWizard::validatePage(int page)
     }
     case ResourcesPage: {
         const QString loc = m_location->currentData().toString();
-        if (loc.isEmpty() || !Paths::ensureDir(loc))
-            return fail(QStringLiteral("Can't use this folder"),
-                        QStringLiteral("“%1” isn't available or can't be created.").arg(loc));
+        QString err;
+        if (loc.isEmpty())
+            return fail(QStringLiteral("No folder chosen"), QStringLiteral("Choose where to store the VM."));
+        if (!Paths::ensureDir(loc, false, &err))
+            return fail(QStringLiteral("Can't use this folder"), err);
         if (::access(QFile::encodeName(loc).constData(), W_OK) != 0)
             return fail(QStringLiteral("Can't use this folder"), QStringLiteral("You can't write to “%1”.").arg(loc));
         return true;
@@ -968,76 +992,78 @@ void NewVmWizard::create()
     }
     c.created = QDateTime::currentDateTime();
 
-    const QString location = m_location->currentData().toString();
-    const QString dir = VmLibrary::uniqueFolder(location, c.name);
-    if (!Paths::ensureDir(dir)) {
-        QMessageBox::warning(this, QStringLiteral("Couldn't create the VM"), QStringLiteral("Can't create %1").arg(dir));
-        return;
-    }
-    c.dir = dir;
-    auto cleanup = [dir] { QDir(dir).removeRecursively(); };
-
+    VmCreator::Request r;
+    r.config = c;
+    r.location = m_location->currentData().toString();
     if (isoMode()) {
-        QString err;
-        if (!DiskOps::createDisk(dir + QStringLiteral("/disk.qcow2"), m_diskSize->value(), &err)) {
-            cleanup();
-            QMessageBox::warning(this, QStringLiteral("Couldn't create the disk"), err);
-            return;
-        }
-        c.disks << DiskSpec{QStringLiteral("disk.qcow2"), QStringLiteral("qcow2"), p.diskBus};
-        c.cdroms << sourcePath();
+        r.newDiskGiB = m_diskSize->value();
+        r.newDiskBus = p.diskBus;
+        r.config.cdroms << sourcePath();
         if (p.family == OsFamily::Windows && !m_driverIso.isEmpty())
-            c.cdroms << m_driverIso;
-        QStringList recent = AppSettings::instance().value(QStringLiteral("wizard/recentIsos")).toStringList();
-        recent.removeAll(sourcePath());
-        recent.prepend(sourcePath());
-        AppSettings::instance().setValue(QStringLiteral("wizard/recentIsos"), recent.mid(0, 10));
+            r.config.cdroms << m_driverIso;
     } else {
         // Imported systems keep SATA: disks booted with "-hda" (AHCI on q35) often have an
         // initramfs without virtio drivers (mkinitcpio's autodetect hook). Switch later in Settings.
-        const QString src = QFileInfo(sourcePath()).absoluteFilePath();
-        const DiskOps::ImageInfo info = DiskOps::imageInfo(src);
-        const QString fmt = info.ok ? info.format : DiskOps::formatForPath(src);
-        if (m_diskCopy->isChecked()) {
-            const QString ext = QFileInfo(src).suffix().isEmpty() ? fmt : QFileInfo(src).suffix();
-            const QString destName = QStringLiteral("disk.") + ext;
-            QProgressDialog progress(QStringLiteral("Copying the disk image…"), QStringLiteral("Cancel"), 0, 100, this);
-            progress.setWindowModality(Qt::WindowModal);
-            progress.setMinimumDuration(0);
-            DiskCopyJob job(src, dir + QLatin1Char('/') + destName);
-            QEventLoop loop;
-            bool ok = false;
-            QString error;
-            connect(&job, &DiskCopyJob::progress, &progress, &QProgressDialog::setValue);
-            connect(&job, &DiskCopyJob::finished, &loop, [&](bool success, const QString &e) {
-                ok = success;
-                error = e;
-                loop.quit();
-            });
-            connect(&progress, &QProgressDialog::canceled, &job, &DiskCopyJob::cancel);
-            job.start();
-            loop.exec();
-            if (!ok) {
-                cleanup();
-                if (!progress.wasCanceled())
-                    QMessageBox::warning(this, QStringLiteral("Copy failed"), error);
-                return;
-            }
-            c.disks << DiskSpec{destName, fmt, QStringLiteral("sata")};
-        } else {
-            c.disks << DiskSpec{src, fmt, QStringLiteral("sata")};
-        }
+        r.existingDisk = sourcePath();
+        r.copyExistingDisk = m_diskCopy->isChecked();
+        r.existingDiskBus = QStringLiteral("sata");
     }
+    m_closeWhenStopped = false;
+    m_progressLabel->setText(QStringLiteral("Creating the VM…"));
+    m_progressBar->setRange(0, 0);
+    setCreating(true);
+    m_creator.start(r);
+}
 
-    QString err;
-    if (!c.save(&err)) {
-        cleanup();
-        QMessageBox::warning(this, QStringLiteral("Couldn't save the VM"), err);
+void NewVmWizard::setCreating(bool creating)
+{
+    m_pages->setEnabled(!creating);
+    m_progressRow->setVisible(creating);
+    m_cancel->setEnabled(true);
+    if (!creating) {
+        updateButtons();
         return;
     }
-    Vm *vm = VmLibrary::instance()->add(c);
-    Q_EMIT vmCreated(vm, m_startNow->isChecked());
-    accept();
+    m_back->setEnabled(false);
+    m_next->setEnabled(false);
+    m_next->setText(QStringLiteral("Creating…"));
+}
+
+void NewVmWizard::onCreated(const VmCreator::Result &result)
+{
+    setCreating(false);
+    if (result.ok) {
+        if (isoMode()) {
+            QStringList recent = AppSettings::instance().value(QStringLiteral("wizard/recentIsos")).toStringList();
+            recent.removeAll(sourcePath());
+            recent.prepend(sourcePath());
+            AppSettings::instance().setValue(QStringLiteral("wizard/recentIsos"), recent.mid(0, 10));
+        }
+        Vm *vm = VmLibrary::instance()->add(result.config);
+        Q_EMIT vmCreated(vm, m_startNow->isChecked());
+        accept();
+        return;
+    }
+    if (result.canceled) {
+        if (m_closeWhenStopped)
+            QDialog::reject();
+        return;
+    }
+    ErrorDialog::show(this, result.title, result.error, result.details);
+}
+
+void NewVmWizard::reject()
+{
+    if (!m_creator.isRunning()) {
+        QDialog::reject();
+        return;
+    }
+    // Close once the worker has stopped and removed what it created.
+    m_closeWhenStopped = true;
+    m_creator.cancel();
+    m_cancel->setEnabled(false);
+    m_progressLabel->setText(QStringLiteral("Canceling…"));
+    m_progressBar->setRange(0, 0);
 }
 
 // ---------------------------------------------------------------------------

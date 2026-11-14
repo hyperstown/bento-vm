@@ -153,15 +153,10 @@ VmConfig VmConfig::fromJson(const QJsonObject &o)
 bool VmConfig::save(QString *error) const
 {
     QSaveFile f(configFile());
-    if (!f.open(QIODevice::WriteOnly)) {
+    if (!f.open(QIODevice::WriteOnly) || f.write(QJsonDocument(toJson()).toJson(QJsonDocument::Indented)) < 0
+        || !f.commit()) {
         if (error)
-            *error = f.errorString();
-        return false;
-    }
-    f.write(QJsonDocument(toJson()).toJson(QJsonDocument::Indented));
-    if (!f.commit()) {
-        if (error)
-            *error = f.errorString();
+            *error = QStringLiteral("Couldn't write “%1”: %2.").arg(configFile(), f.errorString());
         return false;
     }
     return true;
@@ -172,21 +167,23 @@ bool VmConfig::load(const QString &dirPath, VmConfig *out, QString *error)
     QFile f(dirPath + QLatin1Char('/') + fileName());
     if (!f.open(QIODevice::ReadOnly)) {
         if (error)
-            *error = f.errorString();
+            *error = QStringLiteral("Couldn't read “%1”: %2.").arg(f.fileName(), f.errorString());
         return false;
     }
     QJsonParseError pe;
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &pe);
     if (!doc.isObject()) {
         if (error)
-            *error = pe.errorString();
+            *error = pe.error != QJsonParseError::NoError
+                         ? QStringLiteral("“%1” is damaged: %2 at character %3.").arg(f.fileName(), pe.errorString()).arg(pe.offset)
+                         : QStringLiteral("“%1” doesn't contain VM settings.").arg(f.fileName());
         return false;
     }
     *out = fromJson(doc.object());
     out->dir = QDir::cleanPath(dirPath);
     if (out->id.isEmpty()) {
         if (error)
-            *error = QStringLiteral("vm.json has no id");
+            *error = QStringLiteral("“%1” has no VM id.").arg(f.fileName());
         return false;
     }
     return true;

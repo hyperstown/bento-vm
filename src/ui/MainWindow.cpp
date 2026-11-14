@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "MainWindow.h"
+#include "ErrorDialog.h"
 #include "FlowLayout.h"
 #include "Icons.h"
 #include "NewVmWizard.h"
@@ -337,9 +338,7 @@ void MainWindow::addCard(Vm *vm)
     connect(vm, &Vm::configChanged, this, &MainWindow::sortCards);
     connect(vm, &Vm::errorOccurred, this, [this, vm](const QString &title, const QString &details) {
         QWidget *parent = m_windows.value(vm->id()) ? static_cast<QWidget *>(m_windows.value(vm->id())) : this;
-        QMessageBox box(QMessageBox::Warning, title, details, QMessageBox::Ok, parent);
-        box.setDetailedText(QStringLiteral("Log file: %1").arg(vm->logFile()));
-        box.exec();
+        ErrorDialog::show(parent, title, details, QStringLiteral("VM: %1\nLog file: %2").arg(vm->name(), vm->logFile()));
     });
     sortCards();
     updateEmptyState();
@@ -496,7 +495,7 @@ bool MainWindow::startVm(Vm *vm)
 {
     QString err;
     if (!vm->start(&err)) {
-        QMessageBox::warning(this, QStringLiteral("Can't start %1").arg(vm->name()), err);
+        ErrorDialog::show(this, QStringLiteral("Can't start %1").arg(vm->name()), err);
         return false;
     }
     if (!vm->lastWarnings().isEmpty())
@@ -563,7 +562,7 @@ void MainWindow::deleteVm(Vm *vm)
         return;
     QString err;
     if (!VmLibrary::instance()->remove(vm, !keep->isChecked(), &err))
-        QMessageBox::warning(this, QStringLiteral("Couldn't delete"), err);
+        ErrorDialog::show(this, QStringLiteral("Couldn't delete %1").arg(vm->name()), err);
 }
 
 void MainWindow::openWizard(const QString &source)
@@ -598,7 +597,7 @@ void MainWindow::importFolder()
         return;
     QString err;
     if (!VmLibrary::instance()->importFolder(dir, &err))
-        QMessageBox::warning(this, QStringLiteral("Couldn't add the VM"), err);
+        ErrorDialog::show(this, QStringLiteral("Couldn't add the VM"), err, QStringLiteral("Folder: %1").arg(dir));
 }
 
 void MainWindow::showAbout()

@@ -7,12 +7,14 @@
 #include "Vm.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSaveFile>
 #include <QSet>
+#include <QStorageInfo>
 #include <QTimer>
 
 VmLibrary *VmLibrary::instance()
@@ -73,9 +75,10 @@ QString VmLibrary::uniqueFolder(const QString &location, const QString &name)
     base.replace(QLatin1Char('/'), QLatin1Char('-'));
     if (base.isEmpty() || base.startsWith(QLatin1Char('.')))
         base = QStringLiteral("vm") + base;
-    QString candidate = location + QLatin1Char('/') + base;
+    const QString folder = QDir::cleanPath(location);
+    QString candidate = folder + QLatin1Char('/') + base;
     for (int n = 2; QFileInfo::exists(candidate); ++n)
-        candidate = location + QLatin1Char('/') + base + QStringLiteral(" %1").arg(n);
+        candidate = folder + QLatin1Char('/') + base + QStringLiteral(" %1").arg(n);
     return candidate;
 }
 
@@ -276,8 +279,19 @@ bool VmLibrary::remove(Vm *vm, bool deleteFiles, QString *error)
         // Only delete a real Bento VM folder (must contain vm.json).
         if (QFileInfo::exists(cfg.configFile())) {
             if (!QDir(cfg.dir).removeRecursively()) {
+                // QDir doesn't say why; name what's left over.
+                QStringList left;
+                QDirIterator it(cfg.dir, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System,
+                                QDirIterator::Subdirectories);
+                while (it.hasNext() && left.size() < 5)
+                    left << it.next();
+                const QStorageInfo si(cfg.dir);
                 if (error)
-                    *error = QStringLiteral("Couldn't delete %1 completely.").arg(cfg.dir);
+                    *error = si.isReadOnly()
+                                 ? QStringLiteral("“%1” is on a read-only drive.").arg(cfg.dir)
+                                 : QStringLiteral("Some files in “%1” couldn't be deleted. Check that you're allowed to "
+                                                  "delete them and that no other program uses them:\n%2")
+                                       .arg(cfg.dir, left.isEmpty() ? cfg.dir : left.join(QLatin1Char('\n')));
                 return false;
             }
         }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VmSettingsDialog.h"
+#include "ErrorDialog.h"
 #include "Icons.h"
 #include "OsIcon.h"
 #include "ResourceEditors.h"
@@ -21,20 +22,23 @@
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
+#include <QEventLoop>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QFormLayout>
+#include <QFutureWatcher>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMenu>
 #include <QListWidget>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTableWidget>
@@ -42,6 +46,7 @@
 #include <QTreeWidget>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QtConcurrent>
 
 VmSettingsDialog::VmSettingsDialog(Vm *vm, QWidget *parent)
     : PageDialog(parent)
@@ -221,9 +226,40 @@ void VmSettingsDialog::buildStorage()
         QString name = QStringLiteral("disk%1.qcow2").arg(m_cfg.disks.size() + 1);
         for (int n = 2; QFileInfo::exists(m_cfg.dir + QLatin1Char('/') + name); ++n)
             name = QStringLiteral("disk%1.qcow2").arg(m_cfg.disks.size() + n);
-        QString err;
-        if (!DiskOps::createDisk(m_cfg.dir + QLatin1Char('/') + name, size, &err)) {
-            QMessageBox::warning(this, QStringLiteral("Couldn't create the disk"), err);
+        const QString path = m_cfg.dir + QLatin1Char('/') + name;
+        // On a worker thread: slow drives take minutes.
+        QProgressDialog progress(QStringLiteral("Creating the disk (%1 GiB)…").arg(size), QStringLiteral("Cancel"), 0, 100, this);
+        progress.setWindowModality(Qt::WindowModal);
+        progress.setMinimumDuration(400);
+        progress.setMinimumWidth(380);
+        progress.setAutoClose(false);
+        if (auto *cancelButton = progress.findChild<QPushButton *>())
+            cancelButton->setAutoDefault(false);   // not the green default button
+        progress.setValue(0);
+        auto cancel = std::make_shared<std::atomic_bool>(false);
+        connect(&progress, &QProgressDialog::canceled, this, [cancel, &progress] {
+            cancel->store(true);
+            progress.setLabelText(QStringLiteral("Canceling…"));
+        });
+        QFutureWatcher<QString> watcher;
+        QEventLoop loop;
+        connect(&watcher, &QFutureWatcher<QString>::finished, &loop, &QEventLoop::quit);
+        watcher.setFuture(QtConcurrent::run([path, size, cancel, dialog = &progress] {
+            QString err;
+            const DiskOps::Progress p{[dialog](int percent) {
+                                          QMetaObject::invokeMethod(dialog, [dialog, percent] { dialog->setValue(percent); },
+                                                                    Qt::QueuedConnection);
+                                      },
+                                      [cancel] { return cancel->load(); }};
+            return DiskOps::createDisk(path, size, &err, p) ? QString() : err;
+        }));
+        loop.exec();
+        progress.close();
+        if (cancel->load())
+            return;
+        if (const QString err = watcher.result(); !err.isEmpty()) {
+            ErrorDialog::show(this, QStringLiteral("Couldn't create the disk"), err,
+                              QStringLiteral("Disk: %1 (%2 GiB, qcow2)").arg(path).arg(size));
             return;
         }
         DiskSpec d;
@@ -428,7 +464,7 @@ void VmSettingsDialog::buildUsb()
         m_usbAllow->setEnabled(false);
         Usb::grantAccess(u.vendorId, u.productId, this, [this](bool ok, const QString &err) {
             if (!ok)
-                QMessageBox::warning(this, QStringLiteral("Couldn't allow access"), err);
+                ErrorDialog::show(this, QStringLiteral("Couldn't allow access"), err);
             QTimer::singleShot(500, this, &VmSettingsDialog::refreshUsbList);
         });
     });
@@ -629,11 +665,11 @@ bool VmSettingsDialog::apply()
         return false;
     const VmConfig c = collect();
     if (c.name.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("Name missing"), QStringLiteral("Please give the VM a name."));
+        ErrorDialog::show(this, QStringLiteral("Name missing"), QStringLiteral("Please give the VM a name."));
         return false;
     }
     if (Vm *other = VmLibrary::instance()->findByName(c.name); other && other != m_vm) {
-        QMessageBox::warning(this, QStringLiteral("Name in use"), QStringLiteral("Another VM is already called “%1”.").arg(c.name));
+        ErrorDialog::show(this, QStringLiteral("Name in use"), QStringLiteral("Another VM is already called “%1”.").arg(c.name));
         return false;
     }
     if (c.firmware != m_vm->config().firmware && !c.disks.isEmpty()) {
@@ -645,7 +681,7 @@ bool VmSettingsDialog::apply()
     }
     QString err;
     if (!m_vm->updateConfig(c, &err)) {
-        QMessageBox::warning(this, QStringLiteral("Couldn't save"), err);
+        ErrorDialog::show(this, QStringLiteral("Couldn't save the settings"), err);
         return false;
     }
     m_cfg = m_vm->config();

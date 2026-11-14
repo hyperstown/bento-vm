@@ -31,6 +31,8 @@ add_library(bento_core OBJECT
     src/core/Vm.cpp
     src/core/VmLibrary.cpp
     src/core/DiskOps.cpp
+    src/core/Errors.cpp
+    src/core/VmCreator.cpp
     src/core/UsbDevices.cpp
 
     src/display/GlibIntegration.cpp
@@ -42,6 +44,7 @@ add_library(bento_core OBJECT
 
     src/ui/Theme.cpp
     src/ui/Icons.cpp
+    src/ui/ErrorDialog.cpp
     src/ui/OsIcon.cpp
     src/ui/FlowLayout.cpp
     src/ui/ResourceEditors.cpp
@@ -106,6 +109,14 @@ endif()
 if(BENTO_BUILD_TESTS)
     add_executable(readme_shots tests/readme_shots.cpp resources/resources.qrc)
     target_link_libraries(readme_shots PRIVATE bento_core)
+endif()
+if(BENTO_BUILD_TESTS)
+    add_executable(create_test tests/create_test.cpp)
+    target_link_libraries(create_test PRIVATE bento_core)
+endif()
+if(BENTO_BUILD_TESTS)
+    add_executable(create_ui_test tests/create_ui_test.cpp resources/resources.qrc)
+    target_link_libraries(create_ui_test PRIVATE bento_core)
 endif()
 if(BENTO_BUILD_TESTS)
     add_executable(theme_shot tests/theme_shot.cpp resources/resources.qrc)

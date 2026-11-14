@@ -85,7 +85,7 @@ void QmpClient::disconnectFromQemu()
     const auto callbacks = std::exchange(m_callbacks, {});
     for (const Callback &cb : callbacks)
         if (cb)
-            cb({}, QStringLiteral("disconnected"));
+            cb({}, QStringLiteral("The connection to QEMU was lost; the VM may have stopped."));
     if (was)
         Q_EMIT disconnected();
 }
@@ -107,7 +107,7 @@ void QmpClient::enqueue(const QString &command, const QJsonObject &args, int fd,
         if (fd >= 0)
             ::close(fd);
         if (cb)
-            cb({}, QStringLiteral("not connected"));
+            cb({}, QStringLiteral("BentoVM isn't connected to QEMU; the VM may not be running."));
         return;
     }
     const QString id = QString::number(m_nextId++);
@@ -229,7 +229,11 @@ void QmpClient::handleMessage(const QJsonObject &msg)
         return;
     if (msg.contains(QStringLiteral("error"))) {
         const QJsonObject e = msg[QStringLiteral("error")].toObject();
-        cb({}, e[QStringLiteral("desc")].toString(e[QStringLiteral("class")].toString(QStringLiteral("error"))));
+        QString desc = e[QStringLiteral("desc")].toString().trimmed();
+        if (desc.isEmpty())
+            desc = QStringLiteral("QEMU rejected the request (%1) without saying why.")
+                       .arg(e[QStringLiteral("class")].toString(QStringLiteral("no error class")));
+        cb({}, desc);
     } else {
         cb(msg[QStringLiteral("return")], QString());
     }

@@ -11,6 +11,7 @@
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 
+#include <cerrno>
 #include <cstring>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -255,7 +256,7 @@ void DBusDisplay::start()
 
     int sv[2];
     if (::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) < 0) {
-        fail(QStringLiteral("socketpair() failed"));
+        fail(QStringLiteral("Couldn't create a socket for the display: %1.").arg(QString::fromLocal8Bit(::strerror(errno))));
         return;
     }
 
@@ -284,7 +285,7 @@ void DBusDisplay::start()
     GSocket *sock = g_socket_new_from_fd(sv[0], &err);
     if (!sock) {
         ::close(sv[0]);
-        fail(QString::fromUtf8(err->message));
+        fail(QStringLiteral("Couldn't set up the display connection: %1").arg(QString::fromUtf8(err->message)));
         g_error_free(err);
         return;
     }
@@ -378,7 +379,7 @@ void DBusDisplay::registerListener()
 {
     int sv[2];
     if (::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) < 0) {
-        fail(QStringLiteral("socketpair() failed"));
+        fail(QStringLiteral("Couldn't create a socket for the display: %1.").arg(QString::fromLocal8Bit(::strerror(errno))));
         return;
     }
     GError *err = nullptr;
@@ -386,7 +387,7 @@ void DBusDisplay::registerListener()
     if (!sock) {
         ::close(sv[0]);
         ::close(sv[1]);
-        fail(QString::fromUtf8(err->message));
+        fail(QStringLiteral("Couldn't set up the display listener: %1").arg(QString::fromUtf8(err->message)));
         g_error_free(err);
         return;
     }
@@ -420,7 +421,7 @@ void DBusDisplay::onListenerConnection(GDBusConnection *conn)
         return n;
     }();
     if (!node) {
-        fail(QStringLiteral("internal error: listener interface"));
+        fail(QStringLiteral("BentoVM's display listener description is invalid; this is a bug."));
         return;
     }
     for (GDBusInterfaceInfo **iface = node->interfaces; iface && *iface; ++iface) {
@@ -428,7 +429,7 @@ void DBusDisplay::onListenerConnection(GDBusConnection *conn)
         const unsigned id = g_dbus_connection_register_object(conn, kListenerPath, *iface, &kListenerVTable, this,
                                                               nullptr, &err);
         if (!id) {
-            fail(QString::fromUtf8(err->message));
+            fail(QStringLiteral("Couldn't register the display listener: %1").arg(QString::fromUtf8(err->message)));
             g_error_free(err);
             return;
         }

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/OsDb.h"
+#include "core/VmCreator.h"
 
 #include <QDialog>
 #include <QFutureWatcher>
@@ -16,6 +17,7 @@ class QFrame;
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class QProgressBar;
 class QPushButton;
 class QRadioButton;
 class QSpinBox;
@@ -29,6 +31,7 @@ class NewVmWizard : public QDialog
 public:
     explicit NewVmWizard(QWidget *parent = nullptr);
     void setSourcePath(const QString &path);   // pre-fill from a dropped ISO/disk
+    void reject() override;   // also stops a running creation, then closes
 
 Q_SIGNALS:
     void vmCreated(Vm *vm, bool startNow);
@@ -67,6 +70,8 @@ private:
     void updateFeatureHints();
     QString uniqueName(const QString &base) const;
     void create();
+    void setCreating(bool creating);
+    void onCreated(const VmCreator::Result &result);
 
     QStackedWidget *m_pages = nullptr;
     QLabel *m_stepTitle = nullptr;
@@ -74,6 +79,11 @@ private:
     QPushButton *m_back = nullptr;
     QPushButton *m_next = nullptr;
     QPushButton *m_cancel = nullptr;
+    QWidget *m_progressRow = nullptr;
+    QLabel *m_progressLabel = nullptr;
+    QProgressBar *m_progressBar = nullptr;
+    VmCreator m_creator;
+    bool m_closeWhenStopped = false;
 
     // Source
     QRadioButton *m_isoRadio = nullptr;

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VmWindow.h"
+#include "ErrorDialog.h"
 #include "Icons.h"
 #include "OsIcon.h"
 #include "Theme.h"
 #include "agent/VdAgent.h"
 #include "core/AppSettings.h"
 #include "core/OsDb.h"
+#include "core/Paths.h"
 #include "core/QmpClient.h"
 #include "core/UsbDevices.h"
 #include "core/VmLibrary.h"
@@ -25,6 +27,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QImageWriter>
 #include <QJsonObject>
 #include <QLabel>
 #include <QMenu>
@@ -254,7 +257,7 @@ void VmWindow::buildToolbar()
         c.clipboard = a->data().toString();
         QString err;
         if (!m_vm->updateConfig(c, &err))
-            QMessageBox::warning(this, QStringLiteral("Couldn't save"), err);
+            ErrorDialog::show(this, QStringLiteral("Couldn't save the clipboard setting"), err);
         else if (c.display != QLatin1String("embedded"))
             showToast(QStringLiteral("With the QEMU window display the clipboard is either both ways or off; "
                                      "the change applies after a restart."), 7000);
@@ -518,7 +521,7 @@ void VmWindow::startVm()
 {
     QString err;
     if (!m_vm->start(&err)) {
-        QMessageBox::warning(this, QStringLiteral("Can't start %1").arg(m_vm->name()), err);
+        ErrorDialog::show(this, QStringLiteral("Can't start %1").arg(m_vm->name()), err);
         return;
     }
     for (const QString &w : m_vm->lastWarnings())
@@ -606,10 +609,15 @@ void VmWindow::takeScreenshot()
         dir += QStringLiteral("/Screenshots");
     const QString file = QStringLiteral("%1/%2 %3.png")
                              .arg(dir, m_vm->name(), QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd hh-mm-ss")));
-    if (img.save(file))
-        showToast(QStringLiteral("Screenshot saved to %1").arg(file));
-    else
-        showToast(QStringLiteral("Couldn't save the screenshot to %1").arg(dir));
+    QString err;
+    QImageWriter writer(file, "png");
+    if (!Paths::ensureDir(dir, false, &err) || !writer.write(img)) {
+        if (err.isEmpty())
+            err = writer.errorString();
+        showToast(QStringLiteral("Couldn't save the screenshot to %1: %2").arg(file, err), 8000);
+        return;
+    }
+    showToast(QStringLiteral("Screenshot saved to %1").arg(file));
 }
 
 void VmWindow::saveThumbnail()
@@ -845,7 +853,7 @@ void VmWindow::connectUsb(const UsbDevice &d)
     Usb::grantAccess(d.vendorId, d.productId, this, [this, d](bool ok, const QString &err) {
         if (!ok) {
             m_toast->hide();
-            QMessageBox::warning(this, QStringLiteral("Couldn't allow access"), err);
+            ErrorDialog::show(this, QStringLiteral("Couldn't allow access to %1").arg(d.displayName()), err);
             return;
         }
         // udev applies the ACL asynchronously; give it a moment.
@@ -865,9 +873,9 @@ void VmWindow::connectUsb(const UsbDevice &d)
                     attachUsbNow(current);
                 } else {
                     m_toast->hide();
-                    QMessageBox::warning(this, QStringLiteral("Still no access"),
-                                         QStringLiteral("The rule was added, but the device isn't accessible yet. "
-                                                        "Unplug it, plug it back in and try again."));
+                    ErrorDialog::show(this, QStringLiteral("Still no access to %1").arg(current.displayName()),
+                                      QStringLiteral("The rule was added, but the device isn't accessible yet. "
+                                                     "Unplug it, plug it back in and try again."));
                 }
             }
         });
@@ -879,7 +887,7 @@ void VmWindow::requestOneTimeUsbAccess(const UsbDevice &d)
 {
     Usb::requestTemporaryAccess(d, this, [this, d](bool ok, const QString &err, QProcess *holder) {
         if (!ok) {
-            QMessageBox::warning(this, QStringLiteral("Couldn't access %1").arg(d.displayName()), err);
+            ErrorDialog::show(this, QStringLiteral("Couldn't access %1").arg(d.displayName()), err);
             return;
         }
         if (!m_vm || !m_vm->isActive()) {

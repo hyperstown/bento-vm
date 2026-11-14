@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "UsbDevices.h"
+#include "Errors.h"
 #include "Paths.h"
 #include "ui/Icons.h"
 
@@ -239,12 +240,22 @@ void requestTemporaryAccess(const UsbDevice &device, QObject *context,
                 done(false, line.isEmpty() ? QStringLiteral("Access was denied.") : line, nullptr);
             }
         });
-        QObject::connect(p, &QProcess::finished, context, [p, done, finished](int, QProcess::ExitStatus) {
+        QObject::connect(p, &QProcess::finished, context, [p, done, finished](int code, QProcess::ExitStatus) {
             if (!*finished) {
                 *finished = true;
                 const QString err = QString::fromLocal8Bit(p->readAllStandardError() + p->readAllStandardOutput()).trimmed();
-                done(false, err.isEmpty() ? QStringLiteral("Access was denied.") : err, nullptr);
+                done(false,
+                     err.isEmpty() ? QStringLiteral("Access was denied (the access helper exited with code %1).").arg(code) : err,
+                     nullptr);
             }
+            p->deleteLater();
+        });
+        // Without this, a helper that can't run would leave the caller waiting forever.
+        QObject::connect(p, &QProcess::errorOccurred, context, [p, done, finished, helper](QProcess::ProcessError e) {
+            if (e != QProcess::FailedToStart || *finished)
+                return;
+            *finished = true;
+            done(false, Errors::fromProcess(*p, helper), nullptr);
             p->deleteLater();
         });
         p->start(helper, QStringList());
@@ -266,10 +277,17 @@ void requestTemporaryAccess(const UsbDevice &device, QObject *context,
         p->deleteLater();
         if (st == QProcess::NormalExit && code == 0)
             done(true, QString(), nullptr);
-        else if (code == 126 || code == 127)
+        else if (st == QProcess::NormalExit && (code == 126 || code == 127))
             done(false, QStringLiteral("Authorization was cancelled or denied."), nullptr);
         else
-            done(false, QString::fromLocal8Bit(p->readAllStandardError()).trimmed(), nullptr);
+            done(false, Errors::fromProcess(*p, QStringLiteral("pkexec setfacl")), nullptr);
+    });
+    QObject::connect(p, &QProcess::errorOccurred, context, [p, done](QProcess::ProcessError e) {
+        if (e != QProcess::FailedToStart)
+            return;
+        p->deleteLater();
+        done(false, QStringLiteral("pkexec isn't available (%1), so BentoVM can't ask for permission. Use “Always Allow” "
+                                   "or add the USB rule manually.").arg(p->errorString()), nullptr);
     });
     p->start(QStringLiteral("pkexec"), {setfacl, QStringLiteral("-m"), QStringLiteral("u:%1:rw").arg(::getuid()), device.node()});
 }
@@ -320,10 +338,9 @@ void grantAccess(const QString &vendorId, const QString &productId, QObject *con
     QObject::connect(p, &QProcess::finished, context, [p, vendorId, productId, done](int code, QProcess::ExitStatus st) {
         p->deleteLater();
         if (st != QProcess::NormalExit || code != 0) {
-            QString err = QString::fromLocal8Bit(p->readAllStandardError()).trimmed();
-            if (code == 126 || code == 127)
-                err = QStringLiteral("Authorization was cancelled or denied.");
-            done(false, err.isEmpty() ? QStringLiteral("pkexec exited with code %1").arg(code) : err);
+            done(false, st == QProcess::NormalExit && (code == 126 || code == 127)
+                            ? QStringLiteral("Authorization was cancelled or denied.")
+                            : Errors::fromProcess(*p, QStringLiteral("pkexec")));
             return;
         }
         done(true, QString());

@@ -311,6 +311,11 @@ then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the
 virtio port emulated by `socat PTY,… UNIX-LISTEN:…`).
 
+`create_test` checks that VM creation never blocks the UI and that every
+failure explains itself (with a fake `qemu-img` that is slow, silent, crashes or
+can't start). `create_ui_test <out> <iso> <folder> <GiB>` clicks through the New
+VM wizard and creates a VM in the given folder, including Cancel.
+
 `packaging/appimage/test-distros.sh` smoke-tests the AppImage in containers on
 Fedora, Ubuntu 24.04 and 26.04 and Arch (or the distribution images you pass),
 as in a KDE Plasma and in a GNOME session. `theme_shot` prints the theme, style

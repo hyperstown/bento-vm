@@ -22,7 +22,9 @@ QString libraryCacheFile();
 QString defaultStorageLocation();
 
 // mkpath + optional permission tightening; returns false if the directory can't be created.
-bool ensureDir(const QString &path, bool privateDir = false);
+// Creates the folder and missing parents. On failure, *error says which folder
+// and why (e.g. "Read-only file system").
+bool ensureDir(const QString &path, bool privateDir = false, QString *error = nullptr);
 
 // "/run/media/user/Disk/VMs/foo" -> "/run/media/user/Disk" style mount root, best effort.
 QString mountPointFor(const QString &path);

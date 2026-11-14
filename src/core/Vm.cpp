@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Vm.h"
+#include "Errors.h"
 #include "HostInfo.h"
 #include "Paths.h"
 #include "QemuCommand.h"
@@ -141,7 +142,12 @@ bool Vm::startSwtpm(QString *error)
     const HostInfo &host = HostInfo::get();
     const QString rt = runtimeDir();
     const QString state = QemuRuntime::tpmStateDir(m_cfg.dir);
-    Paths::ensureDir(state, true);
+    QString err;
+    if (!Paths::ensureDir(state, true, &err)) {
+        if (error)
+            *error = QStringLiteral("Couldn't prepare the TPM: %1").arg(err);
+        return false;
+    }
     QProcess p;
     p.setProcessEnvironment(Paths::hostEnvironment());
     p.setProgram(host.swtpm);
@@ -151,9 +157,19 @@ bool Vm::startSwtpm(QString *error)
                     QStringLiteral("--log"), QStringLiteral("file=%1/swtpm.log").arg(rt),
                     QStringLiteral("--terminate"), QStringLiteral("--daemon")});
     p.start();
-    if (!p.waitForFinished(10000) || p.exitCode() != 0) {
+    if (!p.waitForFinished(10000) || p.exitStatus() != QProcess::NormalExit || p.exitCode() != 0) {
+        QString reason = Errors::fromProcess(p, QStringLiteral("swtpm"));
+        // swtpm writes its errors to its log file rather than stderr.
+        QFile log(QStringLiteral("%1/swtpm.log").arg(rt));
+        if (log.open(QIODevice::ReadOnly)) {
+            const QString tail = Errors::lastLines(QString::fromLocal8Bit(log.readAll()), 8);
+            if (!tail.isEmpty())
+                reason += QLatin1Char('\n') + tail;
+        }
+        if (p.state() != QProcess::NotRunning)
+            p.kill();
         if (error)
-            *error = QStringLiteral("Failed to start swtpm: %1").arg(QString::fromLocal8Bit(p.readAllStandardError()));
+            *error = QStringLiteral("The TPM emulator (swtpm) didn't start: %1").arg(reason);
         return false;
     }
     for (int i = 0; i < 50 && !QFileInfo::exists(QemuRuntime::swtpmSocket(rt)); ++i)
@@ -178,15 +194,20 @@ bool Vm::start(QString *error)
 
     const QString rt = runtimeDir();
     QDir(rt).removeRecursively();
-    if (!Paths::ensureDir(rt, true))
-        return fail(QStringLiteral("Can't create runtime directory %1").arg(rt));
+    QString dirError;
+    if (!Paths::ensureDir(rt, true, &dirError))
+        return fail(dirError);
 
     const HostInfo &host = HostInfo::get();
     if (m_cfg.firmware == QLatin1String("uefi")) {
         const QString vars = QemuRuntime::efiVarsFile(m_cfg.dir);
         if (!QFileInfo::exists(vars)) {
-            if (host.ovmfVars.isEmpty() || !QFile::copy(host.ovmfVars, vars))
-                return fail(QStringLiteral("Can't create the UEFI variable store (is edk2-ovmf installed?)."));
+            if (host.ovmfVars.isEmpty())
+                return fail(QStringLiteral("The UEFI variable template (OVMF_VARS) wasn't found. Install the edk2-ovmf "
+                                           "package, or switch the VM to BIOS in Settings → Firmware."));
+            QFile src(host.ovmfVars);
+            if (!src.copy(vars))
+                return fail(QStringLiteral("Couldn't create the UEFI variable store “%1”: %2.").arg(vars, src.errorString()));
             QFile::setPermissions(vars, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
         }
     }
