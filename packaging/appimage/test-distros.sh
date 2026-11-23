@@ -23,9 +23,13 @@ IMAGES=("$@")
 [ ${#IMAGES[@]} -gt 0 ] || IMAGES=(fedora:latest ubuntu:24.04 ubuntu:26.04 archlinux:latest)
 
 SOCK=bento-appimage-test
-kwin_wayland --virtual --socket "$SOCK" --width 1280 --height 800 >/dev/null 2>&1 &
+# Private session bus: on the desktop's bus the nested KWin registers its
+# shortcuts as "kwin" too, and when it exits kglobalaccel marks them gone,
+# which switches off the desktop's own Alt+Tab and other KWin shortcuts.
+dbus-run-session -- kwin_wayland --virtual --socket "$SOCK" --width 1280 --height 800 >/dev/null 2>&1 &
 KWIN=$!
-trap 'kill $KWIN 2>/dev/null || true' EXIT
+# dbus-run-session doesn't pass SIGTERM on, so stop its children (KWin, the bus).
+trap 'pkill -TERM -P $KWIN 2>/dev/null; wait $KWIN 2>/dev/null || true' EXIT
 for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCK" ] && break; sleep 0.1; done
 
 # Runs inside each container.

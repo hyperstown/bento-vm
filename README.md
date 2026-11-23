@@ -337,8 +337,11 @@ cmake -B build -DBENTO_BUILD_TESTS=ON && cmake --build build
 
 `display_test`, `ui_test`, `lifecycle_test`, `usb_test` and `usb_ui_test`
 drive real QEMU instances. Run
-them inside a headless compositor (e.g. `kwin_wayland --virtual --socket t`,
-then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
+them inside a headless compositor (e.g.
+`dbus-run-session -- kwin_wayland --virtual --socket t`, then
+`WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories. Keep the nested
+KWin off the desktop's session bus: when it exits it switches off the desktop
+KWin's global shortcuts (Alt+Tab etc.) until the next login.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the
 virtio port emulated by `socat PTY,… UNIX-LISTEN:…`).
 
