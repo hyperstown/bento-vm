@@ -19,6 +19,7 @@
       <li>Venus, VirGL or 2D graphics, shown in a built-in display</li>
       <li>Clipboard sharing with a per-VM direction, and drag &amp; drop of files into the VM</li>
       <li>USB passthrough for game controllers, drives and more</li>
+      <li>A shared folder per VM that this computer and the VM both see (virtio-fs)</li>
       <li>A setup wizard that detects the OS from the ISO and recommends CPU and memory</li>
       <li>Several storage locations; VMs on a disconnected drive show as temporarily unavailable</li>
       <li>Native look on KDE Plasma and a built-in Modern theme, light or dark, on other desktops</li>
@@ -51,6 +52,16 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.0" date="2026-11-23">
+      <description>
+        <p>VMs can share a folder with this computer:</p>
+        <ul>
+          <li>Choose a folder in Settings → Shared Folder, optionally read-only. This computer and the VM see the same files, and changes show up on the other side right away.</li>
+          <li>The Shared Folder button in the VM window opens the folder here and shows how to open it in the VM: two commands on Linux, the virtio-win guest tools and WinFsp on Windows.</li>
+          <li>Needs virtiofsd on this computer. If it isn't installed or the folder is missing, the VM starts without the shared folder and says why.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.3" date="2026-11-14">
       <description>
         <p>Creating virtual machines works reliably on slower drives:</p>
