@@ -27,7 +27,7 @@ class VmSettingsDialog : public PageDialog
     Q_OBJECT
 public:
     explicit VmSettingsDialog(Vm *vm, QWidget *parent = nullptr);
-    void showPage(const QString &name);   // "usb", "sharing"
+    void showPage(const QString &name);   // "usb", "sharing", "advanced"
 
 protected:
     void accept() override;
@@ -70,6 +70,7 @@ private:
     QListWidget *m_usbList = nullptr;
     QPushButton *m_usbAllow = nullptr;
     int m_usbPage = -1;
+    int m_advancedPage = -1;
     QComboBox *m_clipboard = nullptr;
     QCheckBox *m_fileTransfer = nullptr;
     QCheckBox *m_audio = nullptr;

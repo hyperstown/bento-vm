@@ -403,6 +403,8 @@ void VmSettingsDialog::showPage(const QString &name)
         setCurrentPage(m_usbPage);
     else if (name == QLatin1String("sharing") && m_sharePage >= 0)
         setCurrentPage(m_sharePage);
+    else if (name == QLatin1String("advanced") && m_advancedPage >= 0)
+        setCurrentPage(m_advancedPage);
 }
 
 void VmSettingsDialog::buildUsb()
@@ -681,6 +683,7 @@ void VmSettingsDialog::buildFirmware()
 
 void VmSettingsDialog::buildAdvanced()
 {
+    m_advancedPage = m_nav->count();
     QVBoxLayout *page = addPage(QStringLiteral("Advanced"), Icons::fromTheme(QStringLiteral("code-context"),
                                                                             Icons::fromTheme(QStringLiteral("utilities-terminal"))));
     auto *form = makeForm();
