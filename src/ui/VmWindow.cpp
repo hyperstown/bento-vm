@@ -5,6 +5,7 @@
 #include "ErrorDialog.h"
 #include "Icons.h"
 #include "OsIcon.h"
+#include "SharedFolderGuide.h"
 #include "Theme.h"
 #include "agent/VdAgent.h"
 #include "core/AppSettings.h"
@@ -280,6 +281,26 @@ void VmWindow::buildToolbar()
             sendFiles(files);
     });
 
+    // Shared folder: click opens it here, the menu explains the guest side.
+    m_actShare = new QAction(Icons::fromTheme(QStringLiteral("folder-remote"),
+                                              Icons::fromTheme(QStringLiteral("folder-publicshare"))),
+                             QStringLiteral("Shared Folder"), this);
+    m_actShare->setToolTip(QStringLiteral("Open the folder shared with the VM"));
+    auto *shareMenu = new QMenu(this);
+    shareMenu->addAction(Icons::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Open on This Computer"),
+                         this, &VmWindow::openSharedFolder);
+    shareMenu->addAction(Icons::fromTheme(QStringLiteral("help-contents"), Icons::fromTheme(QStringLiteral("help-about"))),
+                         QStringLiteral("How to Open It in the VM…"), this,
+                         [this] { SharedFolderGuide::showDialog(m_vm, this); });
+    shareMenu->addSeparator();
+    shareMenu->addAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Shared Folder Settings…"), this,
+                         [this] { Q_EMIT settingsRequested(m_vm, QStringLiteral("sharing")); });
+    m_actShare->setMenu(shareMenu);
+    connect(m_actShare, &QAction::triggered, this, &VmWindow::openSharedFolder);
+    m_toolbar->addAction(m_actShare);
+    if (auto *b = qobject_cast<QToolButton *>(m_toolbar->widgetForAction(m_actShare)))
+        b->setPopupMode(QToolButton::MenuButtonPopup);
+
     // Removable media
     m_actMedia = new QAction(Icons::fromTheme(QStringLiteral("media-optical")), QStringLiteral("Media"), this);
     m_actMedia->setMenu(new QMenu(this));
@@ -430,6 +451,7 @@ void VmWindow::updateState()
     m_actSendFiles->setEnabled(live && m_vm->config().fileTransfer);
     m_actScreenshot->setEnabled(live);
     m_actUsb->setEnabled(s == Vm::State::Running || s == Vm::State::Paused);
+    m_actShare->setVisible(!m_vm->config().sharedFolder.isEmpty());
     updateUsbButton();
 
     if (!active) {
@@ -516,6 +538,13 @@ void VmWindow::updateMediaMenu()
 }
 
 // ---------------------------------------------------------------------------
+
+void VmWindow::openSharedFolder()
+{
+    const QString error = SharedFolderGuide::openOnHost(m_vm);
+    if (!error.isEmpty())
+        showToast(error, 6000);
+}
 
 void VmWindow::startVm()
 {

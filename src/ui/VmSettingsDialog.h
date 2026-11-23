@@ -12,6 +12,7 @@ class CpuEditor;
 class MemoryEditor;
 class QCheckBox;
 class QComboBox;
+class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -26,7 +27,7 @@ class VmSettingsDialog : public PageDialog
     Q_OBJECT
 public:
     explicit VmSettingsDialog(Vm *vm, QWidget *parent = nullptr);
-    void showPage(const QString &name);   // "usb"
+    void showPage(const QString &name);   // "usb", "sharing"
 
 protected:
     void accept() override;
@@ -40,6 +41,8 @@ private:
     void buildUsb();
     void refreshUsbList();
     void buildIntegration();
+    void buildSharing();
+    void refreshSharing();
     void buildFirmware();
     void buildAdvanced();
     void refreshDisks();
@@ -70,6 +73,14 @@ private:
     QComboBox *m_clipboard = nullptr;
     QCheckBox *m_fileTransfer = nullptr;
     QCheckBox *m_audio = nullptr;
+    int m_sharePage = -1;
+    QCheckBox *m_share = nullptr;
+    QLineEdit *m_shareFolder = nullptr;
+    QPushButton *m_shareBrowse = nullptr;
+    QCheckBox *m_shareReadOnly = nullptr;
+    QWidget *m_shareWarning = nullptr;
+    QGroupBox *m_shareGuideBox = nullptr;
+    QWidget *m_shareGuide = nullptr;
     QComboBox *m_firmware = nullptr;
     QCheckBox *m_secureBoot = nullptr;
     QCheckBox *m_tpm = nullptr;

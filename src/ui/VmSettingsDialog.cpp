@@ -7,11 +7,13 @@
 #include "OsIcon.h"
 #include "ResourceEditors.h"
 #include "SettingsDialog.h"
+#include "SharedFolderGuide.h"
 #include "core/DiskOps.h"
 #include "core/HostInfo.h"
 #include "core/OsDb.h"
 #include "core/Paths.h"
 #include "core/QemuCommand.h"
+#include "core/SharedFolder.h"
 #include "core/UsbDevices.h"
 #include "core/Vm.h"
 #include "core/VmLibrary.h"
@@ -21,6 +23,7 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QDir>
 #include <QDialogButtonBox>
 #include <QEventLoop>
 #include <QFileDialog>
@@ -76,6 +79,7 @@ VmSettingsDialog::VmSettingsDialog(Vm *vm, QWidget *parent)
     buildNetwork();
     buildUsb();
     buildIntegration();
+    buildSharing();
     buildFirmware();
     buildAdvanced();
 
@@ -397,6 +401,8 @@ void VmSettingsDialog::showPage(const QString &name)
 {
     if (name == QLatin1String("usb") && m_usbPage >= 0)
         setCurrentPage(m_usbPage);
+    else if (name == QLatin1String("sharing") && m_sharePage >= 0)
+        setCurrentPage(m_sharePage);
 }
 
 void VmSettingsDialog::buildUsb()
@@ -525,6 +531,116 @@ void VmSettingsDialog::buildIntegration()
     page->addLayout(form);
 }
 
+// "~/Shared" -> "/home/<user>/Shared"
+static QString expandHome(const QString &path)
+{
+    const QString p = path.trimmed();
+    if (p == QLatin1String("~"))
+        return QDir::homePath();
+    if (p.startsWith(QLatin1String("~/")))
+        return QDir::homePath() + p.mid(1);
+    return p;
+}
+
+void VmSettingsDialog::buildSharing()
+{
+    m_sharePage = m_nav->count();
+    const SharedFolder::Support &support = SharedFolder::support();
+    QVBoxLayout *page = addPage(QStringLiteral("Shared Folder"),
+                                Icons::fromTheme(QStringLiteral("folder-remote"),
+                                                 Icons::fromTheme(QStringLiteral("folder-publicshare"))),
+                                QStringLiteral("A folder on this computer that the VM can open too. Both see the same "
+                                               "files, and changes show up on the other side right away."));
+    auto *form = makeForm();
+    m_share = new QCheckBox(QStringLiteral("Share a folder with this VM"), this);
+    m_share->setChecked(!m_cfg.sharedFolder.isEmpty());
+    form->addRow(QString(), m_share);
+    m_shareFolder = new QLineEdit(m_cfg.sharedFolder, this);
+    m_shareFolder->setPlaceholderText(QStringLiteral("Folder on this computer"));
+    m_shareFolder->setClearButtonEnabled(true);
+    m_shareBrowse = new QPushButton(Icons::fromTheme(QStringLiteral("document-open-folder"),
+                                                     Icons::fromTheme(QStringLiteral("folder"))),
+                                    QString(), this);
+    m_shareBrowse->setToolTip(QStringLiteral("Choose a folder"));
+    auto *row = new QHBoxLayout;
+    row->addWidget(m_shareFolder, 1);
+    row->addWidget(m_shareBrowse);
+    form->addRow(QStringLiteral("Folder:"), row);
+    m_shareReadOnly = new QCheckBox(QStringLiteral("Read-only: the VM can open the files but not change them"), this);
+    m_shareReadOnly->setChecked(m_cfg.sharedFolderReadOnly);
+    if (support.installed && !support.readOnly)
+        m_shareReadOnly->setText(QStringLiteral("Read-only (needs a newer virtiofsd)"));
+    form->addRow(QString(), m_shareReadOnly);
+    page->addLayout(form);
+
+    m_shareWarning = new QWidget(this);
+    auto *wl = new QHBoxLayout(m_shareWarning);
+    wl->setContentsMargins(0, 0, 0, 0);
+    auto *wicon = new QLabel(m_shareWarning);
+    Icons::showIn(wicon, Icons::fromTheme(QStringLiteral("dialog-warning")), 16);
+    auto *wtext = new QLabel(QStringLiteral("This gives the VM your whole home folder. Sharing a folder made for this "
+                                            "purpose is safer."), m_shareWarning);
+    wtext->setWordWrap(true);
+    wl->addWidget(wicon, 0, Qt::AlignTop);
+    wl->addWidget(wtext, 1);
+    page->addWidget(m_shareWarning);
+
+    if (!support.installed) {
+        m_share->setText(QStringLiteral("Share a folder with this VM (install virtiofsd to enable)"));
+        page->addWidget(PageDialog::hint(QStringLiteral("Shared folders need virtiofsd on this computer. Most "
+                                                        "distributions package it as “virtiofsd”."), this));
+    }
+
+    m_shareGuideBox = new QGroupBox(QStringLiteral("Opening it in the VM"), this);
+    new QVBoxLayout(m_shareGuideBox);
+    page->addWidget(m_shareGuideBox);
+    auto rebuildGuide = [this] {
+        delete m_shareGuide;
+        m_shareGuide = SharedFolderGuide::create(OsDb::profile(m_os->currentData().toString()).family, m_shareGuideBox);
+        m_shareGuideBox->layout()->addWidget(m_shareGuide);
+    };
+    rebuildGuide();
+
+    auto pick = [this] {
+        const QString start = QFileInfo(expandHome(m_shareFolder->text())).isDir() ? expandHome(m_shareFolder->text())
+                                                                                  : QDir::homePath();
+        return QFileDialog::getExistingDirectory(this, QStringLiteral("Choose a folder to share with %1").arg(m_cfg.name),
+                                                 start);
+    };
+    connect(m_share, &QCheckBox::toggled, this, [this, pick](bool on) {
+        if (on && m_shareFolder->text().trimmed().isEmpty()) {
+            const QString dir = pick();
+            if (dir.isEmpty()) {
+                const QSignalBlocker block(m_share);
+                m_share->setChecked(false);
+            } else {
+                m_shareFolder->setText(dir);
+            }
+        }
+        refreshSharing();
+    });
+    connect(m_shareBrowse, &QPushButton::clicked, this, [this, pick] {
+        const QString dir = pick();
+        if (!dir.isEmpty())
+            m_shareFolder->setText(dir);
+    });
+    connect(m_shareFolder, &QLineEdit::textChanged, this, &VmSettingsDialog::refreshSharing);
+    connect(m_os, &QComboBox::currentIndexChanged, this, rebuildGuide);
+    refreshSharing();
+}
+
+void VmSettingsDialog::refreshSharing()
+{
+    const SharedFolder::Support &support = SharedFolder::support();
+    const bool on = m_share->isChecked();
+    m_share->setEnabled(support.installed || on);   // a share set without virtiofsd can still be turned off
+    m_shareFolder->setEnabled(on);
+    m_shareBrowse->setEnabled(on);
+    m_shareReadOnly->setEnabled(on && (support.readOnly || m_shareReadOnly->isChecked()));
+    m_shareWarning->setVisible(on && SharedFolder::exposesHome(expandHome(m_shareFolder->text())));
+    m_shareGuideBox->setVisible(on);
+}
+
 void VmSettingsDialog::buildFirmware()
 {
     QVBoxLayout *page = addPage(QStringLiteral("Firmware"), Icons::fromTheme(QStringLiteral("preferences-system"),
@@ -650,6 +766,10 @@ VmConfig VmSettingsDialog::collect() const
     c.clipboard = m_clipboard->currentData().toString();
     c.fileTransfer = m_fileTransfer->isChecked();
     c.audio = m_audio->isChecked();
+    c.sharedFolder = m_share->isChecked() ? expandHome(m_shareFolder->text()) : QString();
+    if (QDir::isAbsolutePath(c.sharedFolder))
+        c.sharedFolder = QDir::cleanPath(c.sharedFolder);
+    c.sharedFolderReadOnly = m_shareReadOnly->isChecked();
     c.firmware = m_firmware->currentData().toString();
     c.secureBoot = m_secureBoot->isChecked() && c.firmware == QLatin1String("uefi");
     c.tpm = m_tpm->isChecked();
@@ -678,6 +798,33 @@ bool VmSettingsDialog::apply()
                                       .arg(m_vm->config().firmware.toUpper(), c.firmware.toUpper()))
             != QMessageBox::Yes)
             return false;
+    }
+    if (m_share->isChecked() && c.sharedFolder != m_vm->config().sharedFolder) {
+        auto refuse = [this](const QString &title, const QString &reason) {
+            setCurrentPage(m_sharePage);
+            ErrorDialog::show(this, title, reason);
+            return false;
+        };
+        if (c.sharedFolder.isEmpty())
+            return refuse(QStringLiteral("No folder to share"),
+                          QStringLiteral("Choose the folder to share with the VM, or turn sharing off."));
+        if (!QDir::isAbsolutePath(c.sharedFolder))
+            return refuse(QStringLiteral("Incomplete folder path"),
+                          QStringLiteral("Give the full path of the folder to share, starting with “/”, or choose it "
+                                         "with the folder button."));
+        const QFileInfo fi(c.sharedFolder);
+        if (fi.exists() && !fi.isDir())
+            return refuse(QStringLiteral("Not a folder"), QStringLiteral("“%1” is a file, not a folder.").arg(c.sharedFolder));
+        if (!fi.exists()) {
+            setCurrentPage(m_sharePage);
+            if (QMessageBox::question(this, QStringLiteral("Create the folder?"),
+                                      QStringLiteral("The folder “%1” doesn't exist yet. Create it?").arg(c.sharedFolder))
+                != QMessageBox::Yes)
+                return false;
+            QString dirError;
+            if (!Paths::ensureDir(c.sharedFolder, false, &dirError))
+                return refuse(QStringLiteral("Couldn't create the folder"), dirError);
+        }
     }
     QString err;
     if (!m_vm->updateConfig(c, &err)) {

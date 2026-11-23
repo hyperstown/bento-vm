@@ -7,6 +7,7 @@
 #include "Icons.h"
 #include "NewVmWizard.h"
 #include "SettingsDialog.h"
+#include "SharedFolderGuide.h"
 #include "Theme.h"
 #include "VmCard.h"
 #include "VmSettingsDialog.h"
@@ -465,6 +466,14 @@ void MainWindow::fillVmMenu(QMenu *menu, Vm *vm)
     menu->addAction(Icons::fromTheme(QStringLiteral("configure")), QStringLiteral("Settings…"), this, [this, vm] { showVmSettings(vm); });
     menu->addAction(Icons::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Show in File Manager"), this,
                     [vm] { QDesktopServices::openUrl(QUrl::fromLocalFile(vm->config().dir)); });
+    if (!vm->config().sharedFolder.isEmpty()) {
+        menu->addAction(Icons::fromTheme(QStringLiteral("folder-remote"), Icons::fromTheme(QStringLiteral("folder-publicshare"))),
+                        QStringLiteral("Open Shared Folder"), this, [this, vm] {
+                            const QString error = SharedFolderGuide::openOnHost(vm);
+                            if (!error.isEmpty())
+                                ErrorDialog::show(this, QStringLiteral("Can't open the shared folder"), error);
+                        });
+    }
     menu->addAction(Icons::fromTheme(QStringLiteral("text-x-log"), Icons::fromTheme(QStringLiteral("document-preview"))),
                     QStringLiteral("Open Log"), this, [this, vm] {
                         if (QFileInfo::exists(vm->logFile()))

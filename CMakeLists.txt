@@ -54,6 +54,7 @@ add_library(bento_core OBJECT
     src/ui/VmWindow.cpp
     src/ui/NewVmWizard.cpp
     src/ui/VmSettingsDialog.cpp
+    src/ui/SharedFolderGuide.cpp
     src/ui/SettingsDialog.cpp
     src/ui/PageDialog.cpp
 )

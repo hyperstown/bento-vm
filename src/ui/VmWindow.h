@@ -50,6 +50,7 @@ private:
     void updateAgentStatus();
     void updateClipboardButton();
     void updateMediaMenu();
+    void openSharedFolder();
     void connectDisplay();
     void disconnectDisplay();
     void onDisplayFailed(const QString &error);
@@ -88,6 +89,7 @@ private:
     QAction *m_actKeys = nullptr;
     QAction *m_actClipboard = nullptr;
     QAction *m_actSendFiles = nullptr;
+    QAction *m_actShare = nullptr;
     QAction *m_actMedia = nullptr;
     QAction *m_actUsb = nullptr;
     QAction *m_actScreenshot = nullptr;
