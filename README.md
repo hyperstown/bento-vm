@@ -42,6 +42,9 @@ on Plasma, and uses its own Modern theme on other desktops such as GNOME.
   guest→host or off (switchable live from the VM window).
 - **Drag & drop files** onto the VM screen (or onto its card) to copy them into
   the guest; they land in the guest user's Downloads folder.
+- **Shared folder**: a folder on this computer that the VM can open too
+  (virtio-fs, optionally read-only). Linux guests mount it with one command;
+  Windows guests get it as a drive. See [Shared folders](#shared-folders).
 - **USB passthrough**: plug host devices (game controllers, USB drives, …) into
   a running VM from the *USB* menu, or have them connected automatically
   whenever the VM starts.
@@ -146,6 +149,7 @@ so on LTS distributions it may not be available yet.
 | OVMF (edk2) | – | For UEFI guests (BIOS guests work without it) |
 | libosinfo | optional | Better ISO detection (`osinfo-detect`) |
 | swtpm | optional | TPM 2.0, e.g. for Windows 11 |
+| virtiofsd | optional | [Shared folders](#shared-folders). Read-only shares need a recent release (1.13 can share read-only, 1.10 can't) |
 | spice-gtk | optional | Password-less, one-time USB access (its ACL helper) |
 
 Your user needs read/write access to `/dev/kvm` (usually via the `kvm` group).
@@ -156,13 +160,15 @@ Your user needs read/write access to `/dev/kvm` (usually via the `kvm` group).
 |---|---|
 | Venus (Vulkan) | Linux 5.16+ and Mesa 24.2+ with the Venus driver (Arch: `vulkan-virtio`; Fedora/Debian/Ubuntu: `mesa-vulkan-drivers`) |
 | Clipboard and file drop | `spice-vdagent` |
+| Shared folder | Linux 5.4+ (virtio-fs is built into distribution kernels) |
 
 Check Venus inside the guest with `vulkaninfo --summary`: the device should
 read *Virtio-GPU Venus (…your host GPU…)*. If it only lists llvmpipe, see the
 notes below and the VM's log (*⋮ menu on the VM card → Open Log*).
 
 Windows guests have no Venus/VirGL driver and use the 2D display. Install the
-virtio-win guest tools there for clipboard and file drop.
+virtio-win guest tools there for clipboard and file drop; shared folders also
+need [WinFsp](https://winfsp.dev/rel/).
 
 ### GPU notes
 
@@ -263,6 +269,27 @@ access.
 BentoVM asks for confirmation before taking a keyboard or mouse away from the
 host, and warns if a USB drive is still mounted on the host.
 
+## Shared folders
+
+*Settings → Shared Folder* shares one folder on this computer with the VM.
+Both sides see the same files, and changes show up on the other side right
+away. The *Shared Folder* button in the VM window opens the folder on this
+computer and shows how to open it in the guest:
+
+- **Linux**: `sudo mkdir -p /mnt/shared && sudo mount -t virtiofs shared /mnt/shared`.
+  To mount it at every start, add `shared /mnt/shared virtiofs defaults,nofail 0 0`
+  to `/etc/fstab`.
+- **Windows**: install the virtio-win guest tools and [WinFsp](https://winfsp.dev/rel/),
+  then set *VirtIO-FS Service* to start automatically in *Services*. The folder
+  appears as a drive, usually `Z:`.
+
+BentoVM runs `virtiofsd` as you, so files the VM creates belong to you, and a
+Linux guest's first user (UID 1000) sees the shared files as its own. With a
+virtiofsd too old to map owners, that only holds if your own UID is 1000 too.
+`virtiofsd` normally locks itself into the folder with a sandbox built from user
+namespaces. Where the system doesn't allow that for normal users (e.g. Ubuntu's
+AppArmor restriction), it runs without the sandbox, and the VM's log says so.
+
 ## Keys in the VM window
 
 - **Ctrl+Alt+F**: toggle full screen
@@ -277,6 +304,7 @@ host, and warns if a USB drive is still mounted on the host.
 | Default VM location | `~/.local/share/bento-vm/machines/<name>/` (`vm.json`, `disk.qcow2`, `efivars.fd`) |
 | Library cache (offline VMs) | `~/.local/share/bento-vm/library.json` |
 | QEMU logs | `~/.local/state/bento-vm/logs/<vm-id>.log` |
+| virtiofsd logs (shared folders) | `~/.local/state/bento-vm/logs/<vm-id>.virtiofsd.log` |
 | Sockets / pid files | `$XDG_RUNTIME_DIR/bento-vm/<vm-id>/` |
 
 A VM folder is self-contained: copy it anywhere and add it back with
@@ -297,6 +325,9 @@ A VM folder is self-contained: copy it anywhere and add it back with
 - `agent/VdAgent` speaks the SPICE agent protocol directly on the
   `com.redhat.spice.0` port: clipboard with direction control and file
   transfer, no SPICE server involved.
+- `core/SharedFolder` runs `virtiofsd` for a VM's shared folder, which QEMU
+  reaches through `vhost-user-fs-pci`; the memfd-backed RAM is the shared
+  memory virtio-fs needs.
 
 ## Tests
 
@@ -310,6 +341,13 @@ them inside a headless compositor (e.g. `kwin_wayland --virtual --socket t`,
 then `WAYLAND_DISPLAY=t`) with throwaway `XDG_*_HOME` directories.
 `vdagent_test` talks to a real `spice-vdagentd` (e.g. in a container, with the
 virtio port emulated by `socat PTY,… UNIX-LISTEN:…`).
+
+`sharedfolder_test` needs KVM and `virtiofsd` and runs headless with its own
+throwaway directories. It checks the command line, that `virtiofsd` starts and
+stops with the VM, the fallback without a sandbox and an older `virtiofsd`.
+`tests/virtiofs-guest.sh <dir>` builds a small guest in a podman container;
+`sharedfolder_test <dir>/vmlinuz <dir>/initrd.img` then also boots it to read
+and write the folder from inside the VM.
 
 `create_test` checks that VM creation never blocks the UI and that every
 failure explains itself (with a fake `qemu-img` that is slow, silent, crashes or
@@ -330,6 +368,7 @@ sample library (it boots a Linux live ISO and a Windows installer ISO).
   the *Keys* menu.
 - Folders can't be dropped yet (zip them first).
 - In QEMU-window mode the clipboard is both-ways-or-off and file drop is unavailable.
+- One shared folder per VM; changes to it apply the next time the VM starts.
 
 ## License
 
