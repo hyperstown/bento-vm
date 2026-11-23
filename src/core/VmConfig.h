@@ -70,6 +70,10 @@ struct VmConfig
     QString clipboard = QStringLiteral("both");  // both | host-to-guest | guest-to-host | off
     bool fileTransfer = true;
 
+    // Host folder the guest can mount through virtio-fs ("" = none).
+    QString sharedFolder;
+    bool sharedFolderReadOnly = false;
+
     bool localtime = false;
     bool hyperv = false;
     QString extraArgs;

@@ -7,6 +7,7 @@
 #include "Paths.h"
 #include "QemuCommand.h"
 #include "QmpClient.h"
+#include "SharedFolder.h"
 #include "UsbDevices.h"
 #include "agent/VdAgent.h"
 
@@ -225,10 +226,23 @@ bool Vm::start(QString *error)
         }
     }
 
+    // virtiofsd first: if the shared folder can't be set up, nothing else is
+    // left running.
+    QStringList notes;
+    if (!cmd.sharedFolder.isEmpty()) {
+        QString err;
+        if (!SharedFolder::start(m_cfg, rt, Paths::virtiofsdLogFile(m_cfg.id), &notes, &err))
+            return fail(err);
+        notes.prepend(QStringLiteral("shared folder: %1 (virtiofsd log: %2)")
+                          .arg(cmd.sharedFolder, Paths::virtiofsdLogFile(m_cfg.id)));
+    }
+
     if (m_cfg.tpm && !host.swtpm.isEmpty()) {
         QString err;
-        if (!startSwtpm(&err))
+        if (!startSwtpm(&err)) {
+            SharedFolder::stop(rt);
             return fail(err);
+        }
     }
 
     // Log header with the exact command, then let QEMU append its output.
@@ -242,6 +256,8 @@ bool Vm::start(QString *error)
                         .toUtf8());
             for (const QString &w : std::as_const(cmd.warnings))
                 f.write(QStringLiteral("warning: %1\n").arg(w).toUtf8());
+            for (const QString &n : std::as_const(notes))
+                f.write(QStringLiteral("note: %1\n").arg(n).toUtf8());
             m_logOffset = f.pos();
         }
     }
@@ -259,8 +275,10 @@ bool Vm::start(QString *error)
                                | QProcess::UnixProcessFlag::ResetSignalHandlers
                                | QProcess::UnixProcessFlag::CloseFileDescriptors);
     qint64 pid = 0;
-    if (!p.startDetached(&pid))
+    if (!p.startDetached(&pid)) {
+        SharedFolder::stop(rt);
         return fail(QStringLiteral("Failed to launch %1: %2").arg(cmd.program, p.errorString()));
+    }
 
     m_pid = pid;
     m_startedAt = QDateTime::currentDateTime();
@@ -364,6 +382,7 @@ void Vm::onQmpDisconnected()
 
 void Vm::cleanupRuntime()
 {
+    SharedFolder::stop(runtimeDir());   // exits with QEMU; this catches a QEMU that never connected
     QDir(runtimeDir()).removeRecursively();
     m_pid = 0;
     if (!m_usb.isEmpty()) {

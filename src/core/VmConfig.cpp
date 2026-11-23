@@ -67,6 +67,8 @@ QJsonObject VmConfig::toJson() const
     o[QStringLiteral("integration")] = QJsonObject{{QStringLiteral("audio"), audio},
                                                   {QStringLiteral("clipboard"), clipboard},
                                                   {QStringLiteral("fileTransfer"), fileTransfer}};
+    o[QStringLiteral("sharedFolder")] = QJsonObject{{QStringLiteral("path"), sharedFolder},
+                                                   {QStringLiteral("readOnly"), sharedFolderReadOnly}};
     o[QStringLiteral("advanced")] = QJsonObject{{QStringLiteral("localtime"), localtime},
                                                {QStringLiteral("hyperv"), hyperv},
                                                {QStringLiteral("extraArgs"), extraArgs}};
@@ -140,6 +142,10 @@ VmConfig VmConfig::fromJson(const QJsonObject &o)
     c.audio = integ[QStringLiteral("audio")].toBool(c.audio);
     c.clipboard = integ[QStringLiteral("clipboard")].toString(c.clipboard);
     c.fileTransfer = integ[QStringLiteral("fileTransfer")].toBool(c.fileTransfer);
+
+    const QJsonObject share = o[QStringLiteral("sharedFolder")].toObject();
+    c.sharedFolder = share[QStringLiteral("path")].toString();
+    c.sharedFolderReadOnly = share[QStringLiteral("readOnly")].toBool(c.sharedFolderReadOnly);
 
     const QJsonObject adv = o[QStringLiteral("advanced")].toObject();
     c.localtime = adv[QStringLiteral("localtime")].toBool(c.localtime);

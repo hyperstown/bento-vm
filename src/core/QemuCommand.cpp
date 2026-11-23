@@ -4,6 +4,7 @@
 #include "QemuCommand.h"
 #include "AppSettings.h"
 #include "HostInfo.h"
+#include "SharedFolder.h"
 #include "VmConfig.h"
 
 #include <QFileInfo>
@@ -243,6 +244,21 @@ QemuCommand buildQemuCommand(const VmConfig &c, const QString &rt)
     a << QStringLiteral("-chardev") << QStringLiteral("socket,id=qga,path=%1,server=on,wait=off")
                                            .arg(esc(QemuRuntime::guestAgentSocket(rt)));
     a << QStringLiteral("-device") << QStringLiteral("virtserialport,bus=vser0.0,chardev=qga,name=org.qemu.guest_agent.0");
+
+    // Shared folder: virtiofsd serves it on a vhost-user socket. virtio-fs needs
+    // the guest RAM to be shared memory, which the memfd backend above already is.
+    if (!c.sharedFolder.isEmpty()) {
+        const QString problem = SharedFolder::problem(c);
+        if (!problem.isEmpty()) {
+            cmd.warnings << problem;
+        } else {
+            cmd.sharedFolder = c.absolutePath(c.sharedFolder);
+            a << QStringLiteral("-chardev") << QStringLiteral("socket,id=virtiofs0,path=%1")
+                                                   .arg(esc(QemuRuntime::virtiofsSocket(rt)));
+            a << QStringLiteral("-device") << QStringLiteral("vhost-user-fs-pci,id=sharedfolder,chardev=virtiofs0,tag=%1")
+                                                  .arg(SharedFolder::tag());
+        }
+    }
 
     a << QStringLiteral("-device") << QStringLiteral("virtio-rng-pci");
 

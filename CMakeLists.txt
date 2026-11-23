@@ -28,6 +28,7 @@ add_library(bento_core OBJECT
     src/core/VmConfig.cpp
     src/core/QemuCommand.cpp
     src/core/QmpClient.cpp
+    src/core/SharedFolder.cpp
     src/core/Vm.cpp
     src/core/VmLibrary.cpp
     src/core/DiskOps.cpp
@@ -121,4 +122,8 @@ endif()
 if(BENTO_BUILD_TESTS)
     add_executable(theme_shot tests/theme_shot.cpp resources/resources.qrc)
     target_link_libraries(theme_shot PRIVATE bento_core)
+endif()
+if(BENTO_BUILD_TESTS)
+    add_executable(sharedfolder_test tests/sharedfolder_test.cpp)
+    target_link_libraries(sharedfolder_test PRIVATE bento_core)
 endif()

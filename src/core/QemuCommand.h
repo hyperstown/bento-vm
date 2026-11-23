@@ -14,6 +14,9 @@ struct QemuCommand
     QStringList args;
     QStringList warnings;   // non-fatal: feature dropped, etc.
     QString error;          // fatal: can't boot
+    // Set when the command includes the VM's shared folder: virtiofsd must be
+    // serving this host folder on QemuRuntime::virtiofsSocket() before QEMU starts.
+    QString sharedFolder;
 
     QString toShellString() const;
 };
@@ -23,6 +26,8 @@ inline QString qmpSocket(const QString &rt) { return rt + QStringLiteral("/qmp.s
 inline QString agentSocket(const QString &rt) { return rt + QStringLiteral("/vdagent.sock"); }
 inline QString guestAgentSocket(const QString &rt) { return rt + QStringLiteral("/qga.sock"); }
 inline QString swtpmSocket(const QString &rt) { return rt + QStringLiteral("/swtpm.sock"); }
+inline QString virtiofsSocket(const QString &rt) { return rt + QStringLiteral("/virtiofs.sock"); }
+inline QString virtiofsdPidFile(const QString &rt) { return rt + QStringLiteral("/virtiofsd.pid"); }
 inline QString pidFile(const QString &rt) { return rt + QStringLiteral("/qemu.pid"); }
 inline QString efiVarsFile(const QString &vmDir) { return vmDir + QStringLiteral("/efivars.fd"); }
 inline QString tpmStateDir(const QString &vmDir) { return vmDir + QStringLiteral("/tpm"); }

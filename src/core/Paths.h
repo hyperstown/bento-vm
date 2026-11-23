@@ -17,6 +17,7 @@ QString runtimeDir();  // $XDG_RUNTIME_DIR/bento-vm  (sockets, pid files)
 
 QString vmRuntimeDir(const QString &vmId);
 QString logFile(const QString &vmId);
+QString virtiofsdLogFile(const QString &vmId);   // shared folder helper, next to the QEMU log
 QString thumbnailFile(const QString &vmId);
 QString libraryCacheFile();
 QString defaultStorageLocation();

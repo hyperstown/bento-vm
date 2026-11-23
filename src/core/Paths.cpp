@@ -36,6 +36,10 @@ QString runtimeDir()
 
 QString vmRuntimeDir(const QString &vmId) { return runtimeDir() + QLatin1Char('/') + vmId; }
 QString logFile(const QString &vmId) { return stateDir() + QStringLiteral("/logs/") + vmId + QStringLiteral(".log"); }
+QString virtiofsdLogFile(const QString &vmId)
+{
+    return stateDir() + QStringLiteral("/logs/") + vmId + QStringLiteral(".virtiofsd.log");
+}
 QString thumbnailFile(const QString &vmId) { return cacheDir() + QStringLiteral("/thumbnails/") + vmId + QStringLiteral(".png"); }
 QString libraryCacheFile() { return dataDir() + QStringLiteral("/library.json"); }
 QString defaultStorageLocation() { return dataDir() + QStringLiteral("/machines"); }
